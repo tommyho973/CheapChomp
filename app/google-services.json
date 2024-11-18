@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "114464307344",
+    "project_id": "cheapchomp-c1489",
+    "storage_bucket": "cheapchomp-c1489.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:114464307344:android:c84f71c0370335e29ac015",
+        "android_client_info": {
+          "package_name": "com.example.cheapchomp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCv2VsbCUbibz74ratSWZNs1aJ36Nj92wg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
