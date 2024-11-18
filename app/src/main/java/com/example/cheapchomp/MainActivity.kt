@@ -8,36 +8,52 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.material3.Button
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.example.cheapchomp.ui.theme.CheapChompTheme
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
+import com.google.firebase.FirebaseApp
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.rememberMarkerState
+import com.google.firebase.auth.FirebaseAuth
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        FirebaseApp.initializeApp(this)
         setContent {
             CheapChompTheme {
-                GoogleMapScreen()
+                //GoogleMapScreen()
+                //LoginScreen()
+                RegistrationScreen()
             }
         }
     }
@@ -146,6 +162,110 @@ private fun fetchLocation(
         }
     } catch (e: SecurityException) {
         Log.e("Location", "Location permission is not granted", e)
+    }
+}
+
+@Composable
+fun LoginScreen(modifier: Modifier = Modifier) {
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    //var isLoggedIn by remember { mutableStateOf(false) }
+    Column (
+        modifier = Modifier
+            .fillMaxSize()
+            .wrapContentSize(Alignment.Center)
+    ){
+        Text("Sign in to CheapChomp")
+        Spacer(modifier = Modifier.height(16.dp))
+        TextField(
+            value = email,
+            onValueChange = { email = it },
+            label = { Text("Email") }
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        TextField(
+            value = password,
+            onValueChange = { password = it },
+            label = { Text("Password") }
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Row {
+            Button(onClick = { /*TODO*/ }) {
+                Text("Submit")
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Button(onClick = { /*TODO*/ }) {
+                Text("Sign in with Google")
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(onClick = { /*TODO*/ }) {
+            Text("New user? Create an account")
+        }
+
+    }
+
+}
+
+@Composable
+fun RegistrationScreen(modifier: Modifier = Modifier) {
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+    var message by remember { mutableStateOf("") }
+
+    val auth = FirebaseAuth.getInstance()
+
+    Column (
+        modifier = Modifier
+            .fillMaxSize()
+            .wrapContentSize(Alignment.Center)
+    ){
+        Text("Create an Account")
+        Spacer(modifier = Modifier.height(16.dp))
+        TextField(
+            value = email,
+            onValueChange = { email = it },
+            label = { Text("Email") }
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        TextField(
+            value = password,
+            onValueChange = { password = it },
+            label = { Text("Password") },
+            visualTransformation = PasswordVisualTransformation()
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        TextField(
+            value = confirmPassword,
+            onValueChange = { confirmPassword = it },
+            label = { Text("Confirm Password") },
+            visualTransformation = PasswordVisualTransformation()
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Row {
+            Button(
+                onClick = {
+                    if (password != confirmPassword) {
+                        message = "Passwords do not match!"
+                    } else {
+                        auth.createUserWithEmailAndPassword(email, password)
+                            .addOnCompleteListener { task ->
+                                if (task.isSuccessful) {
+                                    message = "Account created successfully!"
+                                } else {
+                                    message = task.exception?.message ?: "Error occurred!"
+                                }
+                            }
+                    }
+                }) {
+                Text("Create Account")
+            }
+
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(message)
     }
 }
 
