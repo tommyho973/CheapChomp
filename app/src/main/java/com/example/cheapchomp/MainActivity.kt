@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.material3.Button
 import androidx.compose.material3.Scaffold
@@ -32,6 +33,10 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.navigation.NavController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.example.cheapchomp.ui.theme.CheapChompTheme
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
@@ -52,8 +57,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             CheapChompTheme {
                 //GoogleMapScreen()
-                //LoginScreen()
-                RegistrationScreen()
+                mainScreen()
+                //RegistrationScreen()
             }
         }
     }
@@ -166,10 +171,22 @@ private fun fetchLocation(
 }
 
 @Composable
-fun LoginScreen(modifier: Modifier = Modifier) {
+fun mainScreen() {
+    val navController = rememberNavController() // for navigation
+    val auth = FirebaseAuth.getInstance() // initialize and pass firebase authentication
+    NavHost(navController = navController, startDestination = "LoginScreen") {
+        composable("LoginScreen") { LoginScreen(navController = navController, auth = auth) }
+        composable("RegistrationScreen") { RegistrationScreen(navController = navController, auth = auth) }
+    }
+}
+
+@Composable
+fun LoginScreen(modifier: Modifier = Modifier, navController: NavController, auth: FirebaseAuth) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    //var isLoggedIn by remember { mutableStateOf(false) }
+    var isLoggedIn by remember { mutableStateOf(false) }
+    var message by remember { mutableStateOf("") } // display whether login was successful
+
     Column (
         modifier = Modifier
             .fillMaxSize()
@@ -177,45 +194,62 @@ fun LoginScreen(modifier: Modifier = Modifier) {
     ){
         Text("Sign in to CheapChomp")
         Spacer(modifier = Modifier.height(16.dp))
+        // email textfield
         TextField(
             value = email,
             onValueChange = { email = it },
             label = { Text("Email") }
         )
         Spacer(modifier = Modifier.height(16.dp))
+        // password textfield
         TextField(
             value = password,
             onValueChange = { password = it },
-            label = { Text("Password") }
+            label = { Text("Password") },
+            visualTransformation = PasswordVisualTransformation()
         )
         Spacer(modifier = Modifier.height(16.dp))
         Row {
-            Button(onClick = { /*TODO*/ }) {
+            // sign in with email & password
+            Button(onClick = {
+                auth.signInWithEmailAndPassword(email, password) // firebase authentication
+                    .addOnCompleteListener { task ->
+                        if (task.isSuccessful) {
+                            message = "Login successful :)"
+                            isLoggedIn = true
+                        } else {
+                            message = "Login failed: ${task.exception?.message}"
+                        }
+                    }
+            }) {
                 Text("Submit")
             }
             Spacer(modifier = Modifier.width(16.dp))
+            // sign in with google
             Button(onClick = { /*TODO*/ }) {
                 Text("Sign in with Google")
             }
             Spacer(modifier = Modifier.width(16.dp))
         }
         Spacer(modifier = Modifier.height(16.dp))
-        Button(onClick = { /*TODO*/ }) {
+
+        // navigate to registration screen
+        Button(onClick = { navController.navigate("RegistrationScreen") }) {
             Text("New user? Create an account")
         }
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(message, modifier = Modifier.widthIn(max = 250.dp)) // display success or fail
 
     }
 
 }
 
 @Composable
-fun RegistrationScreen(modifier: Modifier = Modifier) {
+fun RegistrationScreen(modifier: Modifier = Modifier, navController: NavController, auth: FirebaseAuth) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
-    var message by remember { mutableStateOf("") }
-
-    val auth = FirebaseAuth.getInstance()
+    var message by remember { mutableStateOf("") } // display whether registration was successful
 
     Column (
         modifier = Modifier
@@ -224,12 +258,14 @@ fun RegistrationScreen(modifier: Modifier = Modifier) {
     ){
         Text("Create an Account")
         Spacer(modifier = Modifier.height(16.dp))
+        // email textfield
         TextField(
             value = email,
             onValueChange = { email = it },
             label = { Text("Email") }
         )
         Spacer(modifier = Modifier.height(16.dp))
+        // password textfield
         TextField(
             value = password,
             onValueChange = { password = it },
@@ -237,6 +273,7 @@ fun RegistrationScreen(modifier: Modifier = Modifier) {
             visualTransformation = PasswordVisualTransformation()
         )
         Spacer(modifier = Modifier.height(16.dp))
+        // confirm password textfield
         TextField(
             value = confirmPassword,
             onValueChange = { confirmPassword = it },
@@ -250,12 +287,12 @@ fun RegistrationScreen(modifier: Modifier = Modifier) {
                     if (password != confirmPassword) {
                         message = "Passwords do not match!"
                     } else {
-                        auth.createUserWithEmailAndPassword(email, password)
+                        auth.createUserWithEmailAndPassword(email, password) // firebase authentication
                             .addOnCompleteListener { task ->
                                 if (task.isSuccessful) {
                                     message = "Account created successfully!"
                                 } else {
-                                    message = task.exception?.message ?: "Error occurred!"
+                                    message = "Error creating account: ${task.exception?.message}"
                                 }
                             }
                     }
@@ -265,7 +302,7 @@ fun RegistrationScreen(modifier: Modifier = Modifier) {
 
         }
         Spacer(modifier = Modifier.height(16.dp))
-        Text(message)
+        Text(message, modifier = Modifier.widthIn(max = 250.dp)) // display success or fail
     }
 }
 
