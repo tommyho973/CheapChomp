@@ -71,10 +71,10 @@ fun GoogleMapScreen() {
         LocationServices.getFusedLocationProviderClient(context)
     }
 
-    // Declare currentLocation using var and remember() for Compose state
+    // Remember currentLocation coordinates
     var currentLocation by remember { mutableStateOf(LatLng(0.0, 0.0)) }
 
-    // Request location permissions
+    // List of permissions to request
     val permissions = arrayOf(
         Manifest.permission.ACCESS_FINE_LOCATION,
         Manifest.permission.ACCESS_COARSE_LOCATION
@@ -96,25 +96,25 @@ fun GoogleMapScreen() {
 
     // Check permissions before fetching the location
     LaunchedEffect(Unit) {
-        // Check if permissions are granted
+        // Check if permissions are already granted and remembered
         if (permissions.any {
                 ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED
             }
         ) {
-            // Request permissions if not granted
+            // Otherwise request permissions
             launcher.launch(permissions)
         } else {
-            // If permissions are already granted, fetch the location
+            // Skip permission check and just fetch location
             fetchLocation(fusedLocationProviderClient, { location ->
                 currentLocation = location // Update state after location is fetched
             })
         }
     }
 
-    // Fallback location if current location is unavailable
-    val fallbackLocation = LatLng(37.7749, -122.4194) // Fallback to San Francisco
+    // Substitute location in case we cannot use the API
+    val fallbackLocation = LatLng(37.7749, -122.4194) //San Francisco
 
-    // Explicitly update cameraPositionState on location change
+    // Update cameraPositionState on location change
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(
             currentLocation.takeIf { it != LatLng(0.0, 0.0) } ?: fallbackLocation, 15f
@@ -140,14 +140,14 @@ fun GoogleMapScreen() {
         cameraPositionState = cameraPositionState
     ) {
         Marker(
-            state = markerState.value,  // Use the updated marker state
+            state = markerState.value,  // This marker pinpoints the current location (it's the red arrow)
             title = "Current Location",
             snippet = "You are here!"
         )
     }
 }
 
-// Function to fetch the current location and pass it back using a callback
+// private function to get the currentLocation using the API and pass it back to Composable, if it fails then we use a predetermined location
 private fun fetchLocation(
     fusedLocationProviderClient: FusedLocationProviderClient,
     onLocationFetched: (LatLng) -> Unit
@@ -160,9 +160,9 @@ private fun fetchLocation(
                 onLocationFetched(latLng) // Pass the location back to Composable state
             } ?: run {
                 // If lastLocation is null, use fallback location
-                val fallbackLatLng = LatLng(37.7749, -122.4194) // Fallback to San Francisco
+                val fallbackLatLng = LatLng(37.7749, -122.4194) // San Francisco coordinates
                 Log.d("Location", "Location is null, using fallback location")
-                onLocationFetched(fallbackLatLng) // Pass fallback location
+                onLocationFetched(fallbackLatLng)
             }
         }
     } catch (e: SecurityException) {
