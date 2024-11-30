@@ -2,22 +2,25 @@ package com.example.cheapchomp
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.material3.Button
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
@@ -25,6 +28,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,14 +47,15 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.firebase.FirebaseApp
+import com.google.firebase.auth.FirebaseAuth
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.rememberCameraPositionState
-import com.google.maps.android.compose.rememberMarkerState
-import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         FirebaseApp.initializeApp(this)
@@ -65,14 +70,19 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun GoogleMapScreen() {
+fun GoogleMapScreen(
+    modifier: Modifier = Modifier,
+    navController: NavController,
+    latitude: Double = 0.0,
+    longitude: Double = 0.0
+) {
     val context = LocalContext.current
     val fusedLocationProviderClient = remember {
         LocationServices.getFusedLocationProviderClient(context)
     }
 
     // Remember currentLocation coordinates
-    var currentLocation by remember { mutableStateOf(LatLng(0.0, 0.0)) }
+    var currentLocation by remember { mutableStateOf(LatLng(latitude, longitude)) }
 
     // List of permissions to request
     val permissions = arrayOf(
@@ -86,9 +96,12 @@ fun GoogleMapScreen() {
     ) { permissionsGranted ->
         if (permissionsGranted[Manifest.permission.ACCESS_FINE_LOCATION] == true) {
             // Permission granted, fetch the location
-            fetchLocation(fusedLocationProviderClient, { location ->
+            fetchLocation(fusedLocationProviderClient) { location ->
                 currentLocation = location // Update the state with the fetched location
-            })
+
+                // Navigate to Kroger Product Screen with current location
+                navController.navigate("KrogerProductScreen/${location.latitude}/${location.longitude}")
+            }
         } else {
             Log.d("Permissions", "Location permission denied")
         }
@@ -105,9 +118,12 @@ fun GoogleMapScreen() {
             launcher.launch(permissions)
         } else {
             // Skip permission check and just fetch location
-            fetchLocation(fusedLocationProviderClient, { location ->
+            fetchLocation(fusedLocationProviderClient) { location ->
                 currentLocation = location // Update state after location is fetched
-            })
+
+                // Navigate to Kroger Product Screen with current location
+                navController.navigate("KrogerProductScreen/${location.latitude}/${location.longitude}")
+            }
         }
     }
 
@@ -170,13 +186,29 @@ private fun fetchLocation(
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun mainScreen() {
-    val navController = rememberNavController() // for navigation
-    val auth = FirebaseAuth.getInstance() // initialize and pass firebase authentication
+    val navController = rememberNavController()
+    val auth = FirebaseAuth.getInstance()
+
     NavHost(navController = navController, startDestination = "LoginScreen") {
-        composable("LoginScreen") { LoginScreen(navController = navController, auth = auth) }
-        composable("RegistrationScreen") { RegistrationScreen(navController = navController, auth = auth) }
+        composable("LoginScreen") {
+            LoginScreen(navController = navController, auth = auth)
+        }
+        composable("RegistrationScreen") {
+            RegistrationScreen(navController = navController, auth = auth)
+        }
+        composable("GoogleMapScreen") { backStackEntry ->
+            val latitude = backStackEntry.arguments?.getString("latitude")?.toDoubleOrNull() ?: 0.0
+            val longitude = backStackEntry.arguments?.getString("longitude")?.toDoubleOrNull() ?: 0.0
+            GoogleMapScreen(navController = navController, latitude = latitude, longitude = longitude)
+        }
+        composable("KrogerProductScreen/{latitude}/{longitude}") { backStackEntry ->
+            val latitude = backStackEntry.arguments?.getString("latitude")?.toDoubleOrNull() ?: 0.0
+            val longitude = backStackEntry.arguments?.getString("longitude")?.toDoubleOrNull() ?: 0.0
+            KrogerProductScreen(navController = navController, latitude = latitude, longitude = longitude)
+        }
     }
 }
 
@@ -240,6 +272,15 @@ fun LoginScreen(modifier: Modifier = Modifier, navController: NavController, aut
         Spacer(modifier = Modifier.height(16.dp))
         Text(message, modifier = Modifier.widthIn(max = 250.dp)) // display success or fail
 
+    }
+    // Add LaunchedEffect for navigation
+    LaunchedEffect(key1 = isLoggedIn) {
+        if (isLoggedIn) {
+            navController.navigate("GoogleMapScreen") { // or "KrogerProductScreen/{latitude}/{longitude}"
+                // Pass arguments if needed
+                popUpTo("LoginScreen") { inclusive = true } // Optional: Remove LoginScreen from back stack
+            }
+        }
     }
 
 }
@@ -306,7 +347,78 @@ fun RegistrationScreen(modifier: Modifier = Modifier, navController: NavControll
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
+@Composable
+fun KrogerProductScreen(
+    modifier: Modifier = Modifier,
+    navController: NavController,
+    latitude: Double,
+    longitude: Double
+) {
+    val krogerApiService = remember { KrogerApiService() }
+    var nearestStoreId by remember { mutableStateOf("") }
+    var productPrice by remember { mutableStateOf<ProductPrice?>(null) }
+    var errorMessage by remember { mutableStateOf("") }
+    val coroutineScope = rememberCoroutineScope()
 
+    LaunchedEffect(latitude, longitude) {
+        coroutineScope.launch {
+            try {
+                val accessToken = krogerApiService.getAccessToken()
+                if (accessToken != null) {
+                    val storeId = krogerApiService.findNearestStore(accessToken, latitude, longitude)
+                    if (storeId != null) {
+                        nearestStoreId = storeId
+                        val price = krogerApiService.getProductPrice(accessToken, storeId, "eggs")
+                        productPrice = price
+                    } else {
+                        errorMessage = "Could not find nearest store"
+                    }
+                } else {
+                    errorMessage = "Could not obtain access token"
+                }
+            } catch (e: Exception) {
+                errorMessage = "Error: ${e.message}"
+            }
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text("Kroger Product Lookup")
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text("Latitude: $latitude")
+        Text("Longitude: $longitude")
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        if (nearestStoreId.isNotEmpty()) {
+            Text("Nearest Store ID: $nearestStoreId")
+        }
+
+        productPrice?.let { price ->
+            Text("Product: ${price.name}")
+            Text("Price: ${price.price}")
+        }
+
+        if (errorMessage.isNotEmpty()) {
+            Text("Error: $errorMessage")
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Button(onClick = { navController.navigateUp() }) {
+            Text("Back")
+        }
+    }
+}
 
 
 @Preview(showBackground = true)

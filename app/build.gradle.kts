@@ -75,5 +75,7 @@ dependencies {
     implementation (libs.maps.compose)
     implementation(platform("com.google.firebase:firebase-bom:33.6.0"))
     implementation("com.google.firebase:firebase-analytics")
+    implementation("com.squareup.okhttp3:okhttp:4.10.0")
+    implementation ("com.google.code.gson:gson:2.8.9")
 
 }
