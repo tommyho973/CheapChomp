@@ -15,12 +15,19 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
@@ -32,7 +39,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -359,8 +368,11 @@ fun KrogerProductScreen(
     var nearestStoreId by remember { mutableStateOf("") }
     var productPrice by remember { mutableStateOf<ProductPrice?>(null) }
     var errorMessage by remember { mutableStateOf("") }
+    var searchQuery by remember { mutableStateOf("") }
+    var isSearching by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
 
+    // Initial store and product lookup
     LaunchedEffect(latitude, longitude) {
         coroutineScope.launch {
             try {
@@ -369,8 +381,6 @@ fun KrogerProductScreen(
                     val storeId = krogerApiService.findNearestStore(accessToken, latitude, longitude)
                     if (storeId != null) {
                         nearestStoreId = storeId
-                        val price = krogerApiService.getProductPrice(accessToken, storeId, "eggs")
-                        productPrice = price
                     } else {
                         errorMessage = "Could not find nearest store"
                     }
@@ -383,36 +393,111 @@ fun KrogerProductScreen(
         }
     }
 
+    // Search function
+    fun performSearch() {
+        if (nearestStoreId.isNotEmpty() && searchQuery.isNotEmpty()) {
+            coroutineScope.launch {
+                isSearching = true
+                errorMessage = ""
+                productPrice = null
+                try {
+                    val accessToken = krogerApiService.getAccessToken()
+                    if (accessToken != null) {
+                        val price = krogerApiService.getProductPrice(accessToken, nearestStoreId, searchQuery)
+                        productPrice = price
+                    } else {
+                        errorMessage = "Could not obtain access token"
+                    }
+                } catch (e: Exception) {
+                    errorMessage = "Error: ${e.message}"
+                } finally {
+                    isSearching = false
+                }
+            }
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("Kroger Product Lookup")
+        Text("Kroger Product Lookup", style = MaterialTheme.typography.headlineMedium)
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        // Search TextField
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                modifier = Modifier.weight(1f),
+                label = { Text("Enter product name") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    imeAction = ImeAction.Search
+                ),
+                keyboardActions = KeyboardActions(
+                    onSearch = { performSearch() }
+                )
+            )
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Button(
+                onClick = { performSearch() },
+                enabled = !isSearching && nearestStoreId.isNotEmpty()
+            ) {
+                if (isSearching) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = Color.Black
+                    )
+                } else {
+                    Text("Search")
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Display store and location info
         Text("Latitude: $latitude")
         Text("Longitude: $longitude")
-
-        Spacer(modifier = Modifier.height(16.dp))
 
         if (nearestStoreId.isNotEmpty()) {
             Text("Nearest Store ID: $nearestStoreId")
         }
 
+        // Display product info
         productPrice?.let { price ->
-            Text("Product: ${price.name}")
-            Text("Price: ${price.price}")
+            Spacer(modifier = Modifier.height(16.dp))
+            Card {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text("Product: ${price.name}", style = MaterialTheme.typography.titleMedium)
+                    Text("Price: ${price.price}", style = MaterialTheme.typography.headlineMedium)
+                }
+            }
         }
 
+        // Error handling
         if (errorMessage.isNotEmpty()) {
-            Text("Error: $errorMessage")
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = errorMessage,
+                color = Color.Red,
+                style = MaterialTheme.typography.bodyMedium
+            )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.weight(1f))
 
         Button(onClick = { navController.navigateUp() }) {
             Text("Back")
