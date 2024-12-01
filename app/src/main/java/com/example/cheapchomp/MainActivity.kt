@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
@@ -367,6 +369,7 @@ fun KrogerProductScreen(
     val krogerApiService = remember { KrogerApiService() }
     var nearestStoreId by remember { mutableStateOf("") }
     var productPrice by remember { mutableStateOf<ProductPrice?>(null) }
+    var productList by remember { mutableStateOf<List<ProductPrice?>>(emptyList()) }
     var errorMessage by remember { mutableStateOf("") }
     var searchQuery by remember { mutableStateOf("") }
     var isSearching by remember { mutableStateOf(false) }
@@ -403,8 +406,10 @@ fun KrogerProductScreen(
                 try {
                     val accessToken = krogerApiService.getAccessToken()
                     if (accessToken != null) {
-                        val price = krogerApiService.getProductPrice(accessToken, nearestStoreId, searchQuery)
-                        productPrice = price
+                        //val price = krogerApiService.getProductPrice(accessToken, nearestStoreId, searchQuery)
+                        val products = krogerApiService.getProductPrices(accessToken, nearestStoreId, searchQuery)
+                        productList = products
+                        //productPrice = price
                     } else {
                         errorMessage = "Could not obtain access token"
                     }
@@ -474,7 +479,7 @@ fun KrogerProductScreen(
         }
 
         // Display product info
-        productPrice?.let { price ->
+       /* productPrice?.let { price ->
             Spacer(modifier = Modifier.height(16.dp))
             Card {
                 Column(
@@ -483,6 +488,29 @@ fun KrogerProductScreen(
                 ) {
                     Text("Product: ${price.name}", style = MaterialTheme.typography.titleMedium)
                     Text("Price: ${price.price}", style = MaterialTheme.typography.headlineMedium)
+                }
+            }
+        }*/
+        if (productList.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(16.dp))
+            LazyColumn {
+                itemsIndexed(productList) { index, product ->
+                    // Check if the product is not null
+                    product?.let {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text("Product: ${product.name}", style = MaterialTheme.typography.titleMedium)
+                                Text("Price: ${product.price}", style = MaterialTheme.typography.headlineMedium)
+                            }
+                        }
+                    }
                 }
             }
         }

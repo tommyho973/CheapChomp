@@ -103,6 +103,47 @@ class KrogerApiService {
             null
         }
     }
+    suspend fun getProductPrices(
+        accessToken: String,
+        locationId: String,
+        productName: String
+    ): List<ProductPrice> = withContext(Dispatchers.IO) {
+
+        // Adjust the URL to fetch more products, by removing the limit or increasing the number
+        val request = Request.Builder()
+            .url("https://api.kroger.com/v1/products?filter.term=$productName&filter.locationId=$locationId&filter.limit=50") // Increase limit for multiple results
+            .get()
+            .addHeader("Authorization", "Bearer $accessToken")
+            .build()
+
+        try {
+            val response = client.newCall(request).execute()
+            if (response.isSuccessful) {
+                val responseBody = response.body?.string()
+                val productResponse = gson.fromJson(responseBody, ProductResponse::class.java)
+
+                // Map over the products and extract their names and prices
+                val products = productResponse.data?.mapNotNull { product ->
+                    val price = product.items?.firstOrNull()?.price?.regular
+                        ?: product.items?.firstOrNull()?.price?.promo
+
+                    ProductPrice(
+                        name = product.description ?: productName,
+                        price = price ?: "N/A"
+                    )
+                } ?: emptyList()  // In case the list is null, return an empty list
+
+                return@withContext products
+            } else {
+                Log.e("KrogerAPI", "Failed to find products")
+                return@withContext emptyList<ProductPrice>()
+            }
+        } catch (e: IOException) {
+            Log.e("KrogerAPI", "Error finding products", e)
+            return@withContext emptyList<ProductPrice>()
+        }
+    }
+
 }
 
 data class TokenResponse(val access_token: String)
