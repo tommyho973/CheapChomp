@@ -3,7 +3,8 @@ package com.example.cheapchomp
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
-import com.google.gson.Gson
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.*
@@ -12,10 +13,17 @@ import java.util.Base64
 
 class KrogerApiService {
     private val client = OkHttpClient()
-    private val gson = Gson()
+    private val moshi = Moshi.Builder()
+        .add(KotlinJsonAdapterFactory())
+        .build()
 
     private val clientId = "cheapchomp-2432612430342448544c2e76442e697642645635565a4e74572f47552e334d535162304250617a496b57686c7a7338414b395163596868694f654c322025561252895796460"
     private val clientSecret = "rY5RD74EvjAA1zYGLruzVdhhLwwagR3Nxzd5X6rb"
+
+    // Moshi to parse and deserialize JSON
+    private val tokenAdapter = moshi.adapter(TokenResponse::class.java)
+    private val locationAdapter = moshi.adapter(LocationResponse::class.java)
+    private val productAdapter = moshi.adapter(ProductResponse::class.java)
 
     // Method to get Kroger access token
     @RequiresApi(Build.VERSION_CODES.O)
@@ -39,8 +47,8 @@ class KrogerApiService {
             val response = client.newCall(request).execute()
             if (response.isSuccessful) {
                 val responseBody = response.body?.string()
-                val tokenResponse = gson.fromJson(responseBody, TokenResponse::class.java)
-                return@withContext tokenResponse.access_token
+                val tokenResponse = responseBody?.let { tokenAdapter.fromJson(it) }
+                return@withContext tokenResponse?.access_token
             }
             null
         } catch (e: IOException) {
@@ -61,8 +69,8 @@ class KrogerApiService {
             val response = client.newCall(request).execute()
             if (response.isSuccessful) {
                 val responseBody = response.body?.string()
-                val locationResponse = gson.fromJson(responseBody, LocationResponse::class.java)
-                locationResponse.data?.firstOrNull()?.locationId
+                val locationResponse = responseBody?.let { locationAdapter.fromJson(it) }
+                locationResponse?.data?.firstOrNull()?.locationId
             } else {
                 Log.e("KrogerAPI", "Failed to find nearest store")
                 null
@@ -85,8 +93,8 @@ class KrogerApiService {
             val response = client.newCall(request).execute()
             if (response.isSuccessful) {
                 val responseBody = response.body?.string()
-                val productResponse = gson.fromJson(responseBody, ProductResponse::class.java)
-                val product = productResponse.data?.firstOrNull()
+                val productResponse = responseBody?.let { productAdapter.fromJson(it) }
+                val product = productResponse?.data?.firstOrNull()
 
                 val price = product?.items?.firstOrNull()?.price?.regular ?: product?.items?.firstOrNull()?.price?.promo
 
@@ -103,15 +111,15 @@ class KrogerApiService {
             null
         }
     }
+    // Method modified getProduct func for multiple products
     suspend fun getProductPrices(
         accessToken: String,
         locationId: String,
         productName: String
     ): List<ProductPrice> = withContext(Dispatchers.IO) {
-
         // Adjust the URL to fetch more products, by removing the limit or increasing the number
         val request = Request.Builder()
-            .url("https://api.kroger.com/v1/products?filter.term=$productName&filter.locationId=$locationId&filter.limit=50") // Increase limit for multiple results
+            .url("https://api.kroger.com/v1/products?filter.term=$productName&filter.locationId=$locationId&filter.limit=50")  // Increase limit for multiple results
             .get()
             .addHeader("Authorization", "Bearer $accessToken")
             .build()
@@ -120,10 +128,9 @@ class KrogerApiService {
             val response = client.newCall(request).execute()
             if (response.isSuccessful) {
                 val responseBody = response.body?.string()
-                val productResponse = gson.fromJson(responseBody, ProductResponse::class.java)
+                val productResponse = responseBody?.let { productAdapter.fromJson(it) }
 
-                // Map over the products and extract their names and prices
-                val products = productResponse.data?.mapNotNull { product ->
+                productResponse?.data?.mapNotNull { product ->
                     val price = product.items?.firstOrNull()?.price?.regular
                         ?: product.items?.firstOrNull()?.price?.promo
 
@@ -131,50 +138,30 @@ class KrogerApiService {
                         name = product.description ?: productName,
                         price = price ?: "N/A"
                     )
-                } ?: emptyList()  // In case the list is null, return an empty list
-
-                return@withContext products
+                } ?: emptyList() // In case the list is null, return an empty list
             } else {
                 Log.e("KrogerAPI", "Failed to find products")
-                return@withContext emptyList<ProductPrice>()
+                emptyList<ProductPrice>()
             }
         } catch (e: IOException) {
             Log.e("KrogerAPI", "Error finding products", e)
-            return@withContext emptyList<ProductPrice>()
+            emptyList<ProductPrice>()
         }
     }
-
 }
 
 data class TokenResponse(val access_token: String)
 
-data class LocationResponse(
-    val data: List<LocationData>?
-)
+data class LocationResponse(val data: List<LocationData>?)
 
-data class LocationData(
-    val locationId: String
-)
+data class LocationData(val locationId: String)
 
-data class ProductPrice(
-    val name: String,
-    val price: String
-)
+data class ProductPrice(val name: String, val price: String)
 
-data class ProductResponse(
-    val data: List<ProductData>?
-)
+data class ProductResponse(val data: List<ProductData>?)
 
-data class ProductData(
-    val description: String,
-    val items: List<ProductItem>?
-)
+data class ProductData(val description: String, val items: List<ProductItem>?)
 
-data class ProductItem(
-    val price: ProductItemPrice?
-)
+data class ProductItem(val price: ProductItemPrice?)
 
-data class ProductItemPrice(
-    val regular: String?,
-    val promo: String?
-)
+data class ProductItemPrice(val regular: String?, val promo: String?)

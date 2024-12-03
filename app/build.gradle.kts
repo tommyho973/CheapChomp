@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     //id("com.android.application")
     id("com.google.gms.google-services")
+    id ("com.google.devtools.ksp") version "1.9.0-1.0.13"
 }
 
 android {
@@ -64,6 +65,7 @@ dependencies {
     implementation(libs.firebase.auth.ktx)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.engage.core)
+    implementation(libs.firebase.firestore.ktx)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -78,11 +80,11 @@ dependencies {
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-firestore")
     implementation("com.squareup.okhttp3:okhttp:4.10.0")
-    implementation ("com.google.code.gson:gson:2.8.9")
+    implementation ("com.squareup.moshi:moshi:1.15.0")
+    implementation ("com.squareup.moshi:moshi-kotlin:1.15.0")
+    ksp ("com.squareup.moshi:moshi-kotlin-codegen:1.15.0")
     implementation("androidx.compose.material:material:1.3.0")
     implementation("androidx.compose.ui:ui-graphics:1.3.0")
     implementation("com.google.accompanist:accompanist-insets-ui:0.28.0")
-
-
 
 }
