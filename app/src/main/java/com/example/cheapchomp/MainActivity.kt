@@ -42,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -52,6 +53,7 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import coil.compose.AsyncImage
 import com.example.cheapchomp.ui.theme.CheapChompTheme
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
@@ -338,6 +340,8 @@ fun RegistrationScreen(modifier: Modifier = Modifier, navController: NavControll
                 onClick = {
                     if (password != confirmPassword) {
                         message = "Passwords do not match!"
+                        password = ""
+                        confirmPassword = ""
                     } else {
                         auth.createUserWithEmailAndPassword(email, password) // firebase authentication
                             .addOnCompleteListener { task ->
@@ -347,6 +351,9 @@ fun RegistrationScreen(modifier: Modifier = Modifier, navController: NavControll
                                     message = "Error creating account: ${task.exception?.message}"
                                 }
                             }
+                        email = ""
+                        password = ""
+                        confirmPassword = ""
                     }
                 }) {
                 Text("Create Account")
@@ -354,6 +361,9 @@ fun RegistrationScreen(modifier: Modifier = Modifier, navController: NavControll
 
         }
         Spacer(modifier = Modifier.height(16.dp))
+        Button(onClick = { navController.navigate("LoginScreen") }) {
+            Text("Already have an account? Sign In!")
+        }
         Text(message, modifier = Modifier.widthIn(max = 250.dp)) // display success or fail
     }
 }
@@ -506,6 +516,7 @@ fun KrogerProductScreen(
                                 modifier = Modifier.padding(16.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
+                                ProductImage(imageUrl = product.imageUrl)
                                 Text("Product: ${product.name}", style = MaterialTheme.typography.titleMedium)
                                 Text("Price: ${product.price}", style = MaterialTheme.typography.headlineMedium)
                             }
@@ -531,6 +542,17 @@ fun KrogerProductScreen(
             Text("Back")
         }
     }
+}
+@Composable
+fun ProductImage(
+    imageUrl: String?
+){
+    AsyncImage(
+        model = imageUrl,
+        contentDescription = null,
+        modifier = Modifier.size(100.dp),
+        contentScale = ContentScale.Crop
+    )
 }
 
 

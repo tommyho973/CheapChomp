@@ -77,5 +77,6 @@ dependencies {
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.squareup.okhttp3:okhttp:4.10.0")
     implementation ("com.google.code.gson:gson:2.8.9")
+    implementation(libs.coil.compose)
 
 }

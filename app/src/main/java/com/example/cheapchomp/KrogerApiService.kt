@@ -92,7 +92,8 @@ class KrogerApiService {
 
                 ProductPrice(
                     name = product?.description ?: productName,
-                    price = price ?: "N/A"
+                    price = price ?: "N/A",
+                    imageUrl = product?.images?.firstOrNull()?.sizes?.get("medium")?.url ?: product?.images?.firstOrNull()?.sizes?.get("large")?.url
                 )
             } else {
                 Log.e("KrogerAPI", "Failed to find product")
@@ -126,10 +127,13 @@ class KrogerApiService {
                 val products = productResponse.data?.mapNotNull { product ->
                     val price = product.items?.firstOrNull()?.price?.regular
                         ?: product.items?.firstOrNull()?.price?.promo
+                    val imageUrl = product.images?.firstOrNull()?.sizes?.get("medium")?.url
+                        ?: product.images?.firstOrNull()?.sizes?.get("large")?.url // Choose preferred size
 
                     ProductPrice(
                         name = product.description ?: productName,
-                        price = price ?: "N/A"
+                        price = price ?: "N/A",
+                        imageUrl = imageUrl
                     )
                 } ?: emptyList()  // In case the list is null, return an empty list
 
@@ -143,6 +147,7 @@ class KrogerApiService {
             return@withContext emptyList<ProductPrice>()
         }
     }
+
 
 }
 
@@ -158,7 +163,8 @@ data class LocationData(
 
 data class ProductPrice(
     val name: String,
-    val price: String
+    val price: String,
+    val imageUrl: String?
 )
 
 data class ProductResponse(
@@ -167,9 +173,16 @@ data class ProductResponse(
 
 data class ProductData(
     val description: String,
-    val items: List<ProductItem>?
+    val items: List<ProductItem>?,
+    val images: List<ProductImage>?
 )
+data class ProductImage(
+    val sizes: Map<String, ImageDetails>?
 
+)
+data class ImageDetails(
+    val url: String? // The URL of the image
+)
 data class ProductItem(
     val price: ProductItemPrice?
 )
