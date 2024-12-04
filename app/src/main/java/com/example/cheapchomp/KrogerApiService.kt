@@ -10,6 +10,7 @@ import kotlinx.coroutines.withContext
 import okhttp3.*
 import java.io.IOException
 import java.util.Base64
+//import com.example.cheapchomp.BuildConfig
 
 class KrogerApiService {
     private val client = OkHttpClient()
@@ -17,8 +18,8 @@ class KrogerApiService {
         .add(KotlinJsonAdapterFactory())
         .build()
 
-    private val clientId = "cheapchomp-2432612430342448544c2e76442e697642645635565a4e74572f47552e334d535162304250617a496b57686c7a7338414b395163596868694f654c322025561252895796460"
-    private val clientSecret = "rY5RD74EvjAA1zYGLruzVdhhLwwagR3Nxzd5X6rb"
+    private val clientId = BuildConfig.CLIENT_ID
+    private val clientSecret = BuildConfig.CLIENT_SECRET
 
     // Moshi to parse and deserialize JSON
     private val tokenAdapter = moshi.adapter(TokenResponse::class.java)

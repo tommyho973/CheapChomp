@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -21,6 +23,19 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+
+        //load the values from .properties file
+        val keystoreFile = project.rootProject.file("local.properties")
+        val properties = Properties()
+        properties.load(keystoreFile.inputStream())
+
+        //return empty key in case something goes wrong
+        val clientSecret = properties.getProperty("CLIENT_SECRET") ?: ""
+        val clientId = properties.getProperty("CLIENT_ID") ?: ""
+
+        buildConfigField(type = "String", name = "CLIENT_SECRET", value = "\"$clientSecret\"")
+        buildConfigField(type = "String", name = "CLIENT_ID", value = "\"$clientId\"")
+
     }
 
     buildTypes {
@@ -41,6 +56,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.1"
