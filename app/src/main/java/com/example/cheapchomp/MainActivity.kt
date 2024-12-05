@@ -496,7 +496,7 @@ fun GroceryListScreen(modifier: Modifier = Modifier, navController: NavControlle
                 icon = { Icon(Icons.Filled.ShoppingCart, contentDescription = "Grocery List") },
                 label = { Text("Grocery List") },
                 selected = false,
-                onClick = { navController.navigate("GroceryListScreen") }
+                onClick = { /* current screen! do nothing :> */  }
             )
         }
     }
@@ -673,7 +673,7 @@ fun KrogerProductScreen(
                 icon = { Icon(Icons.Filled.Search, contentDescription = "Product Search") },
                 label = { Text("Product Search") },
                 selected = true,
-                onClick = { navController.navigate("GoogleMapScreen") }
+                onClick = { /* current screen! do nothing :> */ }
             )
             BottomNavigationItem(
                 icon = { Icon(Icons.Filled.ShoppingCart, contentDescription = "Grocery List") },
