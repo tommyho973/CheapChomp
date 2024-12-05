@@ -83,7 +83,7 @@ class KrogerApiService {
     }
 
     // Method to get product price
-    suspend fun getProductPrice(accessToken: String, locationId: String, productName: String): ProductPrice? = withContext(Dispatchers.IO) {
+    /*suspend fun getProductPrice(accessToken: String, locationId: String, productName: String): ProductPrice? = withContext(Dispatchers.IO) {
         val request = Request.Builder()
             .url("https://api.kroger.com/v1/products?filter.term=$productName&filter.locationId=$locationId&filter.limit=1")
             .get()
@@ -111,7 +111,7 @@ class KrogerApiService {
             Log.e("KrogerAPI", "Error finding product", e)
             null
         }
-    }
+    }*/
     // Method modified getProduct func for multiple products
     suspend fun getProductPrices(
         accessToken: String,
@@ -129,15 +129,18 @@ class KrogerApiService {
             val response = client.newCall(request).execute()
             if (response.isSuccessful) {
                 val responseBody = response.body?.string()
+                Log.d("KrogerAPI1", "Response Code: $responseBody")
                 val productResponse = responseBody?.let { productAdapter.fromJson(it) }
-
                 productResponse?.data?.mapNotNull { product ->
                     val price = product.items?.firstOrNull()?.price?.regular
                         ?: product.items?.firstOrNull()?.price?.promo
+                    val imageUrl = product.images?.firstOrNull()?.sizes?.firstOrNull { it.size == "large" }?.url
+                    Log.d("ProductImage", "Image URL: $imageUrl")
 
                     ProductPrice(
                         name = product.description ?: productName,
-                        price = price ?: "N/A"
+                        price = price ?: "N/A",
+                        imageUrl = imageUrl ?: "https://www.lifewire.com/thmb/5Y8ggTdQiyLdq9us-IMpsACJP-s=/1500x0/filters:no_upscale():max_bytes(150000):strip_icc()/alert-icon-5807a14f5f9b5805c2aa679c.PNG"
                     )
                 } ?: emptyList() // In case the list is null, return an empty list
             } else {
@@ -157,11 +160,20 @@ data class LocationResponse(val data: List<LocationData>?)
 
 data class LocationData(val locationId: String)
 
-data class ProductPrice(val name: String, val price: String)
+data class ProductPrice(val name: String, val price: String, val imageUrl: String?)
 
 data class ProductResponse(val data: List<ProductData>?)
 
-data class ProductData(val description: String, val items: List<ProductItem>?)
+data class ProductData(val description: String, val items: List<ProductItem>?, val images: List<ProductImage>?)
+
+data class ProductImage(val perspective: String?,
+                        val featured: Boolean?,
+                        val sizes: List<ImageSize>?)
+
+data class ImageSize(
+    val size: String?,
+    val url: String?
+)
 
 data class ProductItem(val price: ProductItemPrice?)
 

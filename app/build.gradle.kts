@@ -102,5 +102,6 @@ dependencies {
     implementation("androidx.compose.material:material:1.3.0")
     implementation("androidx.compose.ui:ui-graphics:1.3.0")
     implementation("com.google.accompanist:accompanist-insets-ui:0.28.0")
+    implementation ("io.coil-kt:coil-compose:2.4.0")
 
 }

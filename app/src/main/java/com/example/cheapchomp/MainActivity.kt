@@ -14,34 +14,21 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-//noinspection UsingMaterialAndMaterial3Libraries
-import androidx.compose.material.BottomNavigation
-//noinspection UsingMaterialAndMaterial3Libraries
-import androidx.compose.material.BottomNavigationItem
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -55,10 +42,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -66,22 +53,19 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import coil.compose.AsyncImage
 import com.example.cheapchomp.ui.theme.CheapChompTheme
-import com.google.android.engage.shopping.datamodel.ShoppingCart
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
-import com.google.firebase.Firebase
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.firestore
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.rememberCameraPositionState
 import kotlinx.coroutines.launch
-import java.time.Instant
 
 class MainActivity : ComponentActivity() {
     @RequiresApi(Build.VERSION_CODES.O)
@@ -228,9 +212,6 @@ fun mainScreen() {
         composable("RegistrationScreen") {
             RegistrationScreen(navController = navController, auth = auth)
         }
-        composable("GroceryListScreen") {
-            GroceryListScreen(navController = navController, auth = auth)
-        }
         composable("GoogleMapScreen") { backStackEntry ->
             val latitude = backStackEntry.arguments?.getString("latitude")?.toDoubleOrNull() ?: 0.0
             val longitude = backStackEntry.arguments?.getString("longitude")?.toDoubleOrNull() ?: 0.0
@@ -359,6 +340,8 @@ fun RegistrationScreen(modifier: Modifier = Modifier, navController: NavControll
                 onClick = {
                     if (password != confirmPassword) {
                         message = "Passwords do not match!"
+                        password = ""
+                        confirmPassword = ""
                     } else {
                         auth.createUserWithEmailAndPassword(email, password) // firebase authentication
                             .addOnCompleteListener { task ->
@@ -368,6 +351,9 @@ fun RegistrationScreen(modifier: Modifier = Modifier, navController: NavControll
                                     message = "Error creating account: ${task.exception?.message}"
                                 }
                             }
+                        email = ""
+                        password = ""
+                        confirmPassword = ""
                     }
                 }) {
                 Text("Create Account")
@@ -375,84 +361,11 @@ fun RegistrationScreen(modifier: Modifier = Modifier, navController: NavControll
 
         }
         Spacer(modifier = Modifier.height(16.dp))
+        Button(onClick = { navController.navigate("LoginScreen") }) {
+            Text("Already have an account? Sign In!")
+        }
         Text(message, modifier = Modifier.widthIn(max = 250.dp)) // display success or fail
     }
-}
-
-@Composable
-fun GroceryListScreen(modifier: Modifier = Modifier, navController: NavController, auth: FirebaseAuth) {
-
-    data class Item(
-        val item_id: Int = 0,
-        val store_id: String = "",
-        val name: String = "",
-        val price: String = "",
-        val quantity: Int = 0,
-        val favorited: Boolean = false,
-
-    ) {
-        constructor() : this(0, "", "", "", 0, false)
-    }
-    val db = Firebase.firestore
-    val itemsState = remember { mutableStateOf<List<Item>>(emptyList()) }
-    val items by itemsState // Delegate to itemsState.value
-    val docRef = db.collection("items")
-    docRef.get()
-        .addOnSuccessListener { querySnapshot ->
-            itemsState.value = querySnapshot.toObjects(Item::class.java) // Update itemsState.value
-        }
-        .addOnFailureListener { exception ->
-            Log.d("DATABASE", "get failed with ", exception)
-        }
-    var totalPrice = 0f
-    for (item in items) {
-        val priceString = item.price.replace("[^\\d.]".toRegex(), "")
-        val priceFloat = priceString.toFloatOrNull() ?: 0f
-        totalPrice += priceFloat
-    }
-    val totalPriceStr = String.format("%.2f", totalPrice)
-
-    Column {
-        BottomNavigation(elevation = 8.dp) {
-            BottomNavigationItem(
-                icon = { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") },
-                label = { Text("Back") },
-                selected = false,
-                onClick = { navController.navigateUp() }
-            )
-            BottomNavigationItem(
-                icon = { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") },
-                label = { Text("Grocery List") },
-                selected = false,
-                onClick = { navController.navigate("GroceryListScreen") }
-            )
-            BottomNavigationItem(
-                icon = { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") },
-                label = { Text("Product Search") },
-                selected = false,
-                onClick = { navController.navigate("GoogleMapScreen") }
-            )
-
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(text = "Total Price: $${totalPriceStr}")
-        Spacer(modifier = Modifier.height(16.dp))
-        LazyColumn {
-            items(items) { item ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(8.dp),
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(text = item.name)
-                        Text(text = "$${item.price}")
-                    }
-                }
-            }
-        }
-    }
-    
 }
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -482,8 +395,7 @@ fun KrogerProductScreen(
                     if (storeId != null) {
                         nearestStoreId = storeId
                     } else {
-                        //errorMessage = "Could not find nearest store"
-                        nearestStoreId = "70400357"
+                        errorMessage = "Could not find nearest store"
                     }
                 } else {
                     errorMessage = "Could not obtain access token"
@@ -590,52 +502,23 @@ fun KrogerProductScreen(
             }
         }*/
         if (productList.isNotEmpty()) {
-            val db = Firebase.firestore
             Spacer(modifier = Modifier.height(16.dp))
-            val bottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-            LazyColumn (
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(bottom = bottomPadding) // Apply bottom padding
-            ){
+            LazyColumn {
                 itemsIndexed(productList) { index, product ->
                     // Check if the product is not null
                     product?.let {
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 8.dp),
+                                .padding(vertical = 8.dp)
                         ) {
                             Column(
                                 modifier = Modifier.padding(16.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
-
                             ) {
-                                Text("Product: ${product.name}", style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
-                                Text("Price: ${product.price}", style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
-                                Button(onClick = {
-                                    // Create a new item
-                                    val item = hashMapOf(
-                                        "store_id" to nearestStoreId,
-                                        "item_id" to 0,
-                                        "name" to product.name,
-                                        "price" to product.price,
-                                        "quantity" to 1,
-                                        "favorited" to false,
-                                        "date_added" to Instant.now()
-                                    )
-
-                            // Add a new document with a generated ID
-                                    db.collection("items")
-                                        .add(item)
-                                        .addOnSuccessListener { documentReference ->
-                                            Log.d("DATABASE", "DocumentSnapshot added with ID: ${documentReference.id}")
-                                        }
-                                        .addOnFailureListener { e ->
-                                            Log.w("DATABASE", "Error adding document", e)
-                                        }
-
-                                }) { Text("Add to List") }
+                                ProductImage(imageUrl = product.imageUrl)
+                                Text("Product: ${product.name}", style = MaterialTheme.typography.titleMedium)
+                                Text("Price: ${product.price}", style = MaterialTheme.typography.headlineMedium)
                             }
                         }
                     }
@@ -658,31 +541,18 @@ fun KrogerProductScreen(
         Button(onClick = { navController.navigateUp() }) {
             Text("Back")
         }
-
     }
-    Column {
-        BottomNavigation(elevation = 8.dp) {
-            BottomNavigationItem(
-                icon = { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") },
-                label = { Text("Back") },
-                selected = false,
-                onClick = { navController.navigateUp() }
-            )
-            BottomNavigationItem(
-                icon = { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") },
-                label = { Text("Grocery List") },
-                selected = false,
-                onClick = { navController.navigate("GroceryListScreen") }
-            )
-            BottomNavigationItem(
-                icon = { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") },
-                label = { Text("Product Search") },
-                selected = false,
-                onClick = { navController.navigate("GoogleMapScreen") }
-            )
-
-        }
-    }
+}
+@Composable
+fun ProductImage(
+    imageUrl: String?
+){
+    AsyncImage(
+        model = imageUrl,
+        contentDescription = null,
+        modifier = Modifier.size(100.dp),
+        contentScale = ContentScale.Crop
+    )
 }
 
 
