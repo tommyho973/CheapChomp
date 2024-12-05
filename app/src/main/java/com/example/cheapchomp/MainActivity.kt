@@ -90,6 +90,7 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.firebase.Firebase
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.firestore
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.Marker
@@ -380,6 +381,23 @@ fun RegistrationScreen(modifier: Modifier = Modifier, navController: NavControll
                             .addOnCompleteListener { task ->
                                 if (task.isSuccessful) {
                                     message = "Account created successfully!"
+                                    val db = Firebase.firestore
+                                    val user = hashMapOf(
+                                        "email" to email
+                                    )
+                                    // Add a new document with a generated ID
+                                    db.collection("users")
+                                        .add(user)
+
+                                    getUserRef { userRef ->
+                                        val grocery_list = hashMapOf(
+                                            "favorited" to false,
+                                            "user" to userRef
+                                        )
+                                        db.collection("grocery_list")
+                                            .add(grocery_list)
+                                    }
+                                    navController.navigate("LoginScreen")
                                 } else {
                                     message = "Error creating account: ${task.exception?.message}"
                                 }
@@ -412,14 +430,18 @@ fun GroceryListScreen(modifier: Modifier = Modifier, navController: NavControlle
     val db = Firebase.firestore
     val itemsState = remember { mutableStateOf<List<Item>>(emptyList()) }
     val items by itemsState // Delegate to itemsState.value
-    val docRef = db.collection("items")
-    docRef.get()
-        .addOnSuccessListener { querySnapshot ->
-            itemsState.value = querySnapshot.toObjects(Item::class.java) // Update itemsState.value
-        }
-        .addOnFailureListener { exception ->
-            Log.d("DATABASE", "get failed with ", exception)
-        }
+    getGroceryList { listRef ->
+        db.collection("items")
+            .whereEqualTo("grocery_list", listRef)
+            .get()
+            .addOnSuccessListener { querySnapshot ->
+                itemsState.value =
+                    querySnapshot.toObjects(Item::class.java) // Update itemsState.value
+            }
+            .addOnFailureListener { exception ->
+                Log.d("DATABASE", "get failed with ", exception)
+            }
+    }
     var totalPrice = 0f
     for (item in items) {
         val priceString = item.price.replace("[^\\d.]".toRegex(), "")
@@ -499,6 +521,7 @@ fun KrogerProductScreen(
                         nearestStoreId = storeId
                     } else {
                         errorMessage = "Could not find nearest store"
+                        nearestStoreId = "70400357"
                     }
                 } else {
                     errorMessage = "Could not obtain access token"
@@ -667,24 +690,28 @@ fun ProductImage(
 @RequiresApi(Build.VERSION_CODES.O)
 fun addToDatabase(product: ProductPrice, nearestStoreId: String) {
     val db = Firebase.firestore
-    val item = hashMapOf(
-        "store_id" to nearestStoreId,
-        "item_id" to 0,
-        "name" to product.name,
-        "price" to product.price,
-        "quantity" to 1,
-        "favorited" to false,
-        "date_added" to Instant.now()
-    )
+    getGroceryList { listRef ->
+        val item = hashMapOf(
+            "store_id" to nearestStoreId,
+            "item_id" to 0,
+            "name" to product.name,
+            "price" to product.price,
+            "quantity" to 1,
+            "favorited" to false,
+            "date_added" to Instant.now(),
+            "grocery_list" to listRef
+        )
 
-    db.collection("items")
-        .add(item)
-        .addOnSuccessListener { documentReference ->
-            Log.d("DATABASE", "DocumentSnapshot added with ID: ${documentReference.id}")
-        }
-        .addOnFailureListener { e ->
-            Log.w("DATABASE", "Error adding document", e)
-        }
+
+        db.collection("items")
+            .add(item)
+            .addOnSuccessListener { documentReference ->
+                Log.d("DATABASE", "DocumentSnapshot added with ID: ${documentReference.id}")
+            }
+            .addOnFailureListener { e ->
+                Log.w("DATABASE", "Error adding document", e)
+            }
+    }
 }
 
 @Composable
@@ -774,6 +801,57 @@ fun SwipeableProductItem(
                 }
             }
         }
+    }
+}
+
+fun getUserRef(onResult: (DocumentReference) -> Unit) {
+    val currentUser = FirebaseAuth.getInstance().currentUser
+    val email = currentUser?.email
+
+    if (email == null) {
+        // Handle cases where email is null
+        null
+    }
+
+    val firestore = Firebase.firestore
+    firestore.collection("users")
+        .whereEqualTo("email", email)
+        .get()
+        .addOnSuccessListener { querySnapshot ->
+            if (!querySnapshot.isEmpty) {
+                val userId = querySnapshot.documents[0].reference // Firestore document ID
+                onResult(userId)
+            } else {
+                null // No user found
+            }
+        }
+        .addOnFailureListener { e ->
+            Log.e("FirestoreError", "Error fetching user ID", e)
+            null
+        }
+}
+
+fun getGroceryList(onResult: (DocumentReference) -> Unit) {
+    getUserRef { userRef ->
+        val firestore = Firebase.firestore
+        Log.d("Firestore", "User ID: ${userRef.id}")
+        Log.d("Firestore", "User Ref Path: ${userRef.path}")
+
+        firestore.collection("grocery_list")
+            .whereEqualTo("user", userRef)
+            .get()
+            .addOnSuccessListener { querySnapshot ->
+                if (!querySnapshot.isEmpty) {
+                    val groceryListRef = querySnapshot.documents[0].reference // Firestore document ID
+                    Log.d("Firestore", "GroceryList ID: ${groceryListRef.id}")
+                    onResult(groceryListRef)
+                } else {
+                    Log.d("Firestore", "No grocery list found")
+                }
+            }
+            .addOnFailureListener { e ->
+                Log.e("FirestoreError", "Error fetching grocery list ID", e)
+            }
     }
 }
 
