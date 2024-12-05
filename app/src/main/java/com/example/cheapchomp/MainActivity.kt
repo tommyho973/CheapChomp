@@ -449,45 +449,55 @@ fun GroceryListScreen(modifier: Modifier = Modifier, navController: NavControlle
         totalPrice += priceFloat
     }
     val totalPriceStr = String.format("%.2f", totalPrice)
+    Column(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier
+            .weight(1f)
+            .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally) {
 
-    Column {
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(text = "Total Price: $${totalPriceStr}")
+            Spacer(modifier = Modifier.height(16.dp))
+            LazyColumn {
+                items(items) { item ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp),
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(text = item.name)
+                            Text(text = "$${item.price}")
+                        }
+                    }
+                }
+            }
+
+        }
         BottomNavigation(elevation = 8.dp) {
             BottomNavigationItem(
-                icon = { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") },
+                icon = {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back"
+                    )
+                },
                 label = { Text("Back") },
                 selected = false,
                 onClick = { navController.navigateUp() }
             )
             BottomNavigationItem(
-                icon = { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") },
+                icon = { Icon(Icons.Filled.Search, contentDescription = "Product Search") },
+                label = { Text("Product Search") },
+                selected = true,
+                onClick = { /* Current screen, do nothing */ }
+            )
+            BottomNavigationItem(
+                icon = { Icon(Icons.Filled.ShoppingCart, contentDescription = "Grocery List") },
                 label = { Text("Grocery List") },
                 selected = false,
                 onClick = { navController.navigate("GroceryListScreen") }
             )
-            BottomNavigationItem(
-                icon = { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") },
-                label = { Text("Product Search") },
-                selected = false,
-                onClick = { navController.navigate("GoogleMapScreen") }
-            )
-
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(text = "Total Price: $${totalPriceStr}")
-        Spacer(modifier = Modifier.height(16.dp))
-        LazyColumn {
-            items(items) { item ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(8.dp),
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(text = item.name)
-                        Text(text = "$${item.price}")
-                    }
-                }
-            }
         }
     }
     
