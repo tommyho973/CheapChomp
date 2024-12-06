@@ -515,14 +515,14 @@ fun GroceryListScreen(modifier: Modifier = Modifier, navController: NavControlle
             BottomNavigationItem(
                 icon = { Icon(Icons.Filled.Search, contentDescription = "Product Search") },
                 label = { Text("Product Search") },
-                selected = true,
+                selected = false,
                 onClick = { navController.navigate("GoogleMapScreen") }
             )
             BottomNavigationItem(
                 icon = { Icon(Icons.Filled.ShoppingCart, contentDescription = "Grocery List") },
                 label = { Text("Grocery List") },
-                selected = false,
-                onClick = { navController.navigate("GroceryListScreen") }
+                selected = true,
+                onClick = { /* current screen! do nothing :> */  }
             )
         }
     }
@@ -598,6 +598,7 @@ fun KrogerProductScreen(
         modifier = Modifier.fillMaxSize()
     ) {
         // Existing content moved inside a Column with fillMaxSize
+        // For Nav vs Content Positioning Purposes
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -699,7 +700,7 @@ fun KrogerProductScreen(
                 icon = { Icon(Icons.Filled.Search, contentDescription = "Product Search") },
                 label = { Text("Product Search") },
                 selected = true,
-                onClick = { navController.navigate("GoogleMapScreen") }
+                onClick = { /* current screen! do nothing :> */ }
             )
             BottomNavigationItem(
                 icon = { Icon(Icons.Filled.ShoppingCart, contentDescription = "Grocery List") },
