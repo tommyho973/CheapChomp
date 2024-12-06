@@ -86,6 +86,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
@@ -291,7 +292,7 @@ fun LoginScreen(modifier: Modifier = Modifier, navController: NavController, aut
         verticalArrangement = Arrangement.Center
     ){
         Image(painter = painterResource(id = R.drawable.logo), contentDescription = "Logo")
-        Text("Welcome to CheapChomp!")
+        Text("Welcome to CheapChomp!", style = MaterialTheme.typography.headlineLarge)
         Spacer(modifier = Modifier.height(16.dp))
         // email textfield
         TextField(
@@ -366,19 +367,24 @@ fun RegistrationScreen(modifier: Modifier = Modifier, navController: NavControll
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var message by remember { mutableStateOf("") } // display whether registration was successful
+    var textFieldSize2 by remember{mutableStateOf(IntSize.Zero)}
+
 
     Column (
         modifier = Modifier
             .fillMaxSize()
-            .wrapContentSize(Alignment.Center)
+            .wrapContentSize(Alignment.Center),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ){
-        Text("Create an Account")
+        Text("Sign Up", style = MaterialTheme.typography.headlineMedium)
         Spacer(modifier = Modifier.height(16.dp))
         // email textfield
         TextField(
             value = email,
             onValueChange = { email = it },
-            label = { Text("Email") }
+            label = { Text("Email") },
+            modifier = Modifier.onGloballyPositioned { coordinates ->textFieldSize2 = coordinates.size}
         )
         Spacer(modifier = Modifier.height(16.dp))
         // password textfield
@@ -429,10 +435,14 @@ fun RegistrationScreen(modifier: Modifier = Modifier, navController: NavControll
                                 }
                             }
                     }
-                }) {
+                }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF56AE57)),
+                modifier = Modifier.width(with(LocalDensity.current){textFieldSize2.width.toDp()})) {
                 Text("Create Account")
             }
 
+        }
+        Button(onClick = { navController.navigate("LoginScreen") },colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF56AE57)),modifier = Modifier.width(with(LocalDensity.current){textFieldSize2.width.toDp()})) {
+            Text("Back to Login")
         }
         Spacer(modifier = Modifier.height(16.dp))
         Text(message, modifier = Modifier.widthIn(max = 250.dp)) // display success or fail
