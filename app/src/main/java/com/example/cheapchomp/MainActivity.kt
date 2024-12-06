@@ -493,7 +493,7 @@ fun GroceryListScreen(modifier: Modifier = Modifier, navController: NavControlle
             horizontalAlignment = Alignment.CenterHorizontally) {
 
             Spacer(modifier = Modifier.height(16.dp))
-            Text(text = "Total Price: $${totalPriceStr}")
+            Text(text = "Total Price: $${totalPriceStr}", style = MaterialTheme.typography.headlineMedium)
             Spacer(modifier = Modifier.height(16.dp))
             LazyColumn {
                 items(items) { item ->
@@ -642,7 +642,7 @@ fun KrogerProductScreen(
                 Spacer(modifier = Modifier.width(8.dp))
 
                 Button(
-                    onClick = { performSearch() },
+                    onClick = { performSearch()},
                     enabled = !isSearching && nearestStoreId.isNotEmpty()
                 ) {
                     if (isSearching) {
@@ -676,7 +676,9 @@ fun KrogerProductScreen(
                         .fillMaxSize()
                         .padding(bottom = bottomPadding)
                 ){
-                    itemsIndexed(productList) { index, product ->
+                    itemsIndexed(productList.filter{
+                        it?.price != "N/A"
+                    }) { index, product ->
                         product?.let {
                             SwipeableProductItem(
                                 product = it,
@@ -831,21 +833,23 @@ fun SwipeableProductItem(
                     )
                 }
         ) {
-            Column(
+            Row(
                 modifier = Modifier.padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 ProductImage(imageUrl = product.imageUrl)
-                Text(
-                    "Product: ${product.name}",
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Text(
-                    "Price: ${product.price}",
-                    style = MaterialTheme.typography.headlineMedium
-                )
-                if (isAdded){
-                    Text("This item was added!")
+                Spacer(modifier = Modifier.width(16.dp))
+                Column() {
+                    Text(
+                        "Product: ${product.name}",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Text(
+                        "Price: $${product.price}",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    if (isAdded) {
+                        Text("This item was added!")
+                    }
                 }
             }
         }
