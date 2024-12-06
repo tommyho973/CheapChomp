@@ -53,9 +53,15 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -64,16 +70,21 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
@@ -99,6 +110,7 @@ import com.google.maps.android.compose.rememberCameraPositionState
 import kotlinx.coroutines.launch
 import java.time.Instant
 import kotlin.math.roundToInt
+import com.google.android.gms.common.SignInButton
 
 class MainActivity : ComponentActivity() {
     @RequiresApi(Build.VERSION_CODES.O)
@@ -107,9 +119,11 @@ class MainActivity : ComponentActivity() {
         FirebaseApp.initializeApp(this)
         setContent {
             CheapChompTheme {
-                //GoogleMapScreen()
-                mainScreen()
-                //RegistrationScreen()
+                Surface(color = Color(0xFF98FB98)) {
+                    //GoogleMapScreen()
+                    mainScreen()
+                    //RegistrationScreen()
+                }
             }
         }
     }
@@ -267,19 +281,24 @@ fun LoginScreen(modifier: Modifier = Modifier, navController: NavController, aut
     var password by remember { mutableStateOf("") }
     var isLoggedIn by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("") } // display whether login was successful
+    var textFieldSize by remember{mutableStateOf(IntSize.Zero)}
 
     Column (
         modifier = Modifier
             .fillMaxSize()
-            .wrapContentSize(Alignment.Center)
+            .wrapContentSize(Alignment.Center),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ){
-        Text("Sign in to CheapChomp")
+        Image(painter = painterResource(id = R.drawable.logo), contentDescription = "Logo")
+        Text("Welcome to CheapChomp!")
         Spacer(modifier = Modifier.height(16.dp))
         // email textfield
         TextField(
             value = email,
             onValueChange = { email = it },
-            label = { Text("Email") }
+            label = { Text("Email") },
+            modifier = Modifier.onGloballyPositioned { coordinates ->textFieldSize = coordinates.size}
         )
         Spacer(modifier = Modifier.height(16.dp))
         // password textfield
@@ -290,34 +309,41 @@ fun LoginScreen(modifier: Modifier = Modifier, navController: NavController, aut
             visualTransformation = PasswordVisualTransformation()
         )
         Spacer(modifier = Modifier.height(16.dp))
-        Row {
             // sign in with email & password
-            Button(onClick = {
-                auth.signInWithEmailAndPassword(email, password) // firebase authentication
-                    .addOnCompleteListener { task ->
-                        if (task.isSuccessful) {
-                            message = "Login successful :)"
-                            isLoggedIn = true
-                        } else {
-                            message = "Login failed: ${task.exception?.message}"
-                        }
+        Button(onClick = {
+            auth.signInWithEmailAndPassword(email, password) // firebase authentication
+                .addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        message = "Login successful :)"
+                        isLoggedIn = true
+                    } else {
+                        message = "Login failed: ${task.exception?.message}"
                     }
-            }) {
-                Text("Submit")
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            // sign in with google
-            Button(onClick = { /*TODO*/ }) {
-                Text("Sign in with Google")
-            }
-            Spacer(modifier = Modifier.width(16.dp))
+                }
+        }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF56AE57)),
+            modifier = Modifier.width(with(LocalDensity.current){textFieldSize.width.toDp()})
+        ) {
+            Text("Login")
         }
         Spacer(modifier = Modifier.height(16.dp))
-
-        // navigate to registration screen
-        Button(onClick = { navController.navigate("RegistrationScreen") }) {
-            Text("New user? Create an account")
+        Row(){
+            Text("Don't have an account?")
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Sign Up", color = Color(0xFF56AE57), modifier = Modifier.clickable { navController.navigate("RegistrationScreen") })
         }
+        Spacer(modifier = Modifier.height(16.dp))
+        Text("OR")
+        Spacer(modifier = Modifier.height(16.dp))
+        Image(
+            painter = painterResource(id = R.drawable.google),
+            contentDescription = "Sign In with Google",
+            modifier = Modifier
+                .size(250.dp, 50.dp)
+                .border(1.dp, Color(0xFF56AE57), RoundedCornerShape(50)) // Border first
+                .clip(RoundedCornerShape(50)) // Clip to the border shape
+                .background(Color.White)
+                .clickable { /*Do something later*/ }
+        )
         Spacer(modifier = Modifier.height(16.dp))
         Text(message, modifier = Modifier.widthIn(max = 250.dp)) // display success or fail
 
