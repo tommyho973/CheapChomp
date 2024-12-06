@@ -58,6 +58,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.BottomNavigationDefaults
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.SnackbarHostState
@@ -510,7 +511,7 @@ fun GroceryListScreen(modifier: Modifier = Modifier, navController: NavControlle
             }
 
         }
-        BottomNavigation(elevation = 8.dp) {
+        BottomNavigation(backgroundColor = Color(0xFF56AE57),elevation = 8.dp) {
             BottomNavigationItem(
                 icon = {
                     Icon(
@@ -699,7 +700,7 @@ fun KrogerProductScreen(
         }
 
         // Bottom Navigation
-        BottomNavigation(elevation = 8.dp) {
+        BottomNavigation(backgroundColor = Color(0xFF56AE57),elevation = 8.dp) {
             BottomNavigationItem(
                 icon = { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") },
                 label = { Text("Back") },
