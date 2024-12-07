@@ -10,6 +10,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -53,17 +54,25 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.BottomNavigationDefaults
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -81,6 +90,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -113,6 +123,7 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 import kotlin.math.roundToInt
 import com.google.android.gms.common.SignInButton
+import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
     @RequiresApi(Build.VERSION_CODES.O)
@@ -278,7 +289,11 @@ fun mainScreen() {
 }
 
 @Composable
-fun LoginScreen(modifier: Modifier = Modifier, navController: NavController, auth: FirebaseAuth) {
+fun LoginScreen(
+    modifier: Modifier = Modifier,
+    navController: NavController,
+    auth: FirebaseAuth
+) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var isLoggedIn by remember { mutableStateOf(false) }
@@ -363,7 +378,11 @@ fun LoginScreen(modifier: Modifier = Modifier, navController: NavController, aut
 }
 
 @Composable
-fun RegistrationScreen(modifier: Modifier = Modifier, navController: NavController, auth: FirebaseAuth) {
+fun RegistrationScreen(
+    modifier: Modifier = Modifier,
+    navController: NavController,
+    auth: FirebaseAuth
+) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
@@ -451,8 +470,11 @@ fun RegistrationScreen(modifier: Modifier = Modifier, navController: NavControll
 }
 
 @Composable
-fun GroceryListScreen(modifier: Modifier = Modifier, navController: NavController, auth: FirebaseAuth) {
-
+fun GroceryListScreen(
+    modifier: Modifier = Modifier,
+    navController: NavController,
+    auth: FirebaseAuth
+) {
     data class Item(
         val item_id: Int = 0,
         val store_id: String = "",
@@ -505,6 +527,7 @@ fun GroceryListScreen(modifier: Modifier = Modifier, navController: NavControlle
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(text = item.name)
                             Text(text = "$${item.price}")
+                            Text(text = "${item.quantity}")
                         }
                     }
                 }
@@ -683,7 +706,10 @@ fun KrogerProductScreen(
                             SwipeableProductItem(
                                 product = it,
                                 nearestStoreId = nearestStoreId,
-                                onAddToDatabase = { addToDatabase(it, nearestStoreId) }
+                                onAddToDatabase = { quantity ->
+                                    Log.d("DATABASE", "Quantity being passed to addToDatabase: $quantity")
+                                    addToDatabase(it, nearestStoreId, quantity)
+                                }
                             )
                         }
                     }
@@ -738,28 +764,64 @@ fun ProductImage(
 }
 
 @RequiresApi(Build.VERSION_CODES.O)
-fun addToDatabase(product: ProductPrice, nearestStoreId: String) {
+fun addToDatabase(
+    product: ProductPrice,
+    nearestStoreId: String,
+    quantity: Int
+) {
     val db = Firebase.firestore
     getGroceryList { listRef ->
-        val item = hashMapOf(
-            "store_id" to nearestStoreId,
-            "item_id" to 0,
-            "name" to product.name,
-            "price" to product.price,
-            "quantity" to 1,
-            "favorited" to false,
-            "date_added" to Instant.now(),
-            "grocery_list" to listRef
-        )
-
+        // Debug: incoming quantity
+        Log.d("DATABASE", "Adding quantity: $quantity")
 
         db.collection("items")
-            .add(item)
-            .addOnSuccessListener { documentReference ->
-                Log.d("DATABASE", "DocumentSnapshot added with ID: ${documentReference.id}")
+            .whereEqualTo("grocery_list", listRef)
+            .whereEqualTo("store_id", nearestStoreId)
+            .whereEqualTo("name", product.name)
+            .get()
+            .addOnSuccessListener { documents ->
+                if (!documents.isEmpty) {
+                    // Item exists, update quantity
+                    val doc = documents.documents[0]
+                    val currentQuantity = doc.getLong("quantity")?.toInt() ?: 0
+                    Log.d("DATABASE", "Current quantity in DB: $currentQuantity")
+                    Log.d("DATABASE", "Adding quantity: $quantity")
+                    val newQuantity = currentQuantity + quantity
+                    Log.d("DATABASE", "New quantity will be: $newQuantity")
+
+                    doc.reference.update("quantity", newQuantity)
+                        .addOnSuccessListener {
+                            Log.d("DATABASE", "DocumentSnapshot updated with new quantity: $newQuantity")
+                        }
+                        .addOnFailureListener { e ->
+                            Log.w("DATABASE", "Error updating document", e)
+                        }
+                } else {
+                    // Item doesn't exist, create new document
+                    Log.d("DATABASE", "Creating new document with initial quantity: $quantity")
+                    val item = hashMapOf(
+                        "store_id" to nearestStoreId,
+                        "item_id" to 0,
+                        "name" to product.name,
+                        "price" to product.price,
+                        "quantity" to quantity,
+                        "favorited" to false,
+                        "date_added" to Instant.now(),
+                        "grocery_list" to listRef
+                    )
+
+                    db.collection("items")
+                        .add(item)
+                        .addOnSuccessListener { documentReference ->
+                            Log.d("DATABASE", "DocumentSnapshot added with ID: ${documentReference.id} and quantity: $quantity")
+                        }
+                        .addOnFailureListener { e ->
+                            Log.w("DATABASE", "Error adding document", e)
+                        }
+                }
             }
             .addOnFailureListener { e ->
-                Log.w("DATABASE", "Error adding document", e)
+                Log.w("DATABASE", "Error checking for existing item", e)
             }
     }
 }
@@ -768,12 +830,52 @@ fun addToDatabase(product: ProductPrice, nearestStoreId: String) {
 fun SwipeableProductItem(
     product: ProductPrice,
     nearestStoreId: String,
-    onAddToDatabase: () -> Unit
+    onAddToDatabase: (quantity: Int) -> Unit
 ) {
     var offset by remember { mutableFloatStateOf(0f) }
     var isDragging by remember { mutableStateOf(false) }
     val swipeThreshold = 300f
-    var isAdded by remember { mutableStateOf(false) }
+    var clickCount by remember { mutableIntStateOf(0) }
+    var showDialog by remember { mutableStateOf(false) }
+    var manualQuantity by remember { mutableStateOf("1") }
+    var existingQuantity by remember { mutableIntStateOf(0) }
+    var showAddedMessage by remember { mutableStateOf(false) }
+    var lastAddedQuantity by remember { mutableIntStateOf(0) }
+
+    // Query Firestore to get initial quantity
+    LaunchedEffect(product.name, nearestStoreId) {
+        getGroceryList { listRef ->
+            val db = Firebase.firestore
+            db.collection("items")
+                .whereEqualTo("grocery_list", listRef)
+                .whereEqualTo("store_id", nearestStoreId)
+                .whereEqualTo("name", product.name)
+                .get()
+                .addOnSuccessListener { documents ->
+                    existingQuantity = documents.sumOf { doc ->
+                        doc.getLong("quantity")?.toInt() ?: 0
+                    }
+                }
+                .addOnFailureListener { e ->
+                    Log.e("Firestore", "Error getting existing quantity", e)
+                }
+        }
+    }
+
+    // Hide the message after delay
+    LaunchedEffect(showAddedMessage) {
+        if (showAddedMessage) {
+            delay(2000) // Message shows for 2 seconds
+            showAddedMessage = false
+        }
+    }
+
+    val handleAddToDatabase = { quantity: Int ->
+        existingQuantity += quantity
+        lastAddedQuantity = quantity
+        showAddedMessage = true
+        onAddToDatabase(quantity)
+    }
 
     // Animate the offset with a spring-like animation for smooth sling-back
     val animatedOffset by animateFloatAsState(
@@ -785,13 +887,32 @@ fun SwipeableProductItem(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp)
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .pointerInput(Unit) {
+                detectHorizontalDragGestures(
+                    onDragStart = { isDragging = true },
+                    onDragEnd = {
+                        isDragging = false
+                        // If swiped beyond threshold, add to database
+                        if (offset >= swipeThreshold) {
+                            handleAddToDatabase(1) // Swipe should be simplistic, only add 1
+                        }
+                        // Reset offset for next swipe
+                        offset = 0f
+                    },
+                    onHorizontalDrag = { _, dragAmount ->
+                        // Allow dragging regardless of previous swipes
+                        offset = (offset + dragAmount).coerceIn(0f, swipeThreshold)
+                    }
+                )
+            }
     ) {
         // Background (Add icon)
         Box(
             modifier = Modifier
                 .matchParentSize()
-                .background(Color.Green),
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color(0xFF56AE57).copy(alpha = 0.2f)),
             contentAlignment = Alignment.CenterEnd
         ) {
             Icon(
@@ -800,7 +921,8 @@ fun SwipeableProductItem(
                 modifier = Modifier
                     .padding(end = 16.dp)
                     .scale(2f)
-                    .alpha(animatedOffset / swipeThreshold)
+                    .alpha(animatedOffset / swipeThreshold),
+                tint = Color(0xFF56AE57)
             )
         }
 
@@ -808,51 +930,165 @@ fun SwipeableProductItem(
         Card(
             modifier = Modifier
                 .offset { IntOffset(animatedOffset.roundToInt(), 0) }
-                .fillMaxWidth()
-                .padding(vertical = 8.dp)
-                .pointerInput(Unit) {
-                    detectHorizontalDragGestures(
-                        onDragStart = {
-                            isDragging = true
-                        },
-                        onDragEnd = {
-                            isDragging = false
+                .fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .background(Color.White)
+                    .padding(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Product Image
+                    Box(
+                        modifier = Modifier
+                            .size(80.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                    ) {
+                        ProductImage(imageUrl = product.imageUrl)
+                    }
 
-                            // If swiped beyond threshold, add to database
-                            if (offset >= swipeThreshold && !isAdded) {
-                                isAdded = true
-                                onAddToDatabase()
-                            }
-                        },
-                        onHorizontalDrag = { _, dragAmount ->
-                            if (!isAdded) {
-                                // Allow dragging only within the threshold
-                                offset = (offset + dragAmount).coerceIn(0f, swipeThreshold)
+                    // Product Details Column
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Product Name
+                        Text(
+                            text = product.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = Color.Black,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        // Price and Save to Grocery List in a row
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "$${product.price}",
+                                style = MaterialTheme.typography.titleLarge,
+                                color = Color(0xFF56AE57)
+                            )
+
+                            Button(
+                                onClick = {
+                                    clickCount++
+                                    if (clickCount >= 3) {
+                                        showDialog = true
+                                    } else {
+                                        handleAddToDatabase(1)
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF56AE57)
+                                ),
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = PaddingValues(
+                                    horizontal = 16.dp,
+                                    vertical = 8.dp
+                                )
+                            ) {
+                                Text("Save to List")
                             }
                         }
-                    )
+                        AnimatedVisibility(
+                            visible = showAddedMessage,
+                            enter = fadeIn() + expandVertically(),
+                            exit = fadeOut() + shrinkVertically()
+                        ) {
+                            Text(
+                                text = "Added ${lastAddedQuantity} item${if (lastAddedQuantity > 1) "s" else ""}",
+                                color = Color(0xFF56AE57),
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
+                    }
                 }
-        ) {
-            Row(
-                modifier = Modifier.padding(16.dp),
-            ) {
-                ProductImage(imageUrl = product.imageUrl)
-                Spacer(modifier = Modifier.width(16.dp))
-                Column() {
-                    Text(
-                        "Product: ${product.name}",
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Text(
-                        "Price: $${product.price}",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    if (isAdded) {
-                        Text("This item was added!")
+
+                // Quantity Badge
+                if (existingQuantity > 0) {
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .align(Alignment.TopEnd)
+                            .offset(x = 12.dp, y = (-12).dp)
+                            .background(
+                                color = Color(0xFF56AE57),
+                                shape = CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = existingQuantity.toString(),
+                            color = Color.White,
+                            style = MaterialTheme.typography.bodySmall
+                        )
                     }
                 }
             }
         }
+    }
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showDialog = false
+                clickCount = 0
+            },
+            title = { Text("Seems You Want Multiple Items...") },
+            text = {
+                Column {
+                    Text("Enter the quantity you'd like to add:")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    TextField(
+                        value = manualQuantity,
+                        onValueChange = { newValue ->
+                            if (newValue.isEmpty() || newValue.all { it.isDigit() }) {
+                                manualQuantity = newValue
+                            }
+                        },
+                        label = { Text("Quantity") },
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Number,
+                            imeAction = ImeAction.Done
+                        )
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val quantity = manualQuantity.toIntOrNull() ?: 1
+                        if (quantity > 0) {
+                            handleAddToDatabase(quantity)
+                            showDialog = false
+                            clickCount = 0
+                            manualQuantity = "1"
+                        }
+                    }
+                ) {
+                    Text("Add")
+                }
+            },
+            dismissButton = {
+                Button(
+                    onClick = {
+                        showDialog = false
+                        clickCount = 0
+                        manualQuantity = "1"
+                    }
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 
