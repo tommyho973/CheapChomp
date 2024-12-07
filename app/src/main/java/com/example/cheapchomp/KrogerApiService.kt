@@ -70,6 +70,7 @@ class KrogerApiService {
             val response = client.newCall(request).execute()
             if (response.isSuccessful) {
                 val responseBody = response.body?.string()
+                Log.d("KrogerAPILocation", "Response Code: $responseBody")
                 val locationResponse = responseBody?.let { locationAdapter.fromJson(it) }
                 locationResponse?.data?.firstOrNull()?.locationId
             } else {

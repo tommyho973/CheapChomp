@@ -67,8 +67,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.BottomNavigationDefaults
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.mutableFloatStateOf
@@ -82,6 +84,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.isEmpty
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -122,7 +125,6 @@ import com.google.maps.android.compose.rememberCameraPositionState
 import kotlinx.coroutines.launch
 import java.time.Instant
 import kotlin.math.roundToInt
-import com.google.android.gms.common.SignInButton
 import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
@@ -300,6 +302,7 @@ fun LoginScreen(
     var message by remember { mutableStateOf("") } // display whether login was successful
     var textFieldSize by remember{mutableStateOf(IntSize.Zero)}
 
+
     Column (
         modifier = Modifier
             .fillMaxSize()
@@ -469,6 +472,7 @@ fun RegistrationScreen(
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun GroceryListScreen(
     modifier: Modifier = Modifier,
@@ -524,10 +528,17 @@ fun GroceryListScreen(
                             .fillMaxWidth()
                             .padding(8.dp),
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(text = item.name)
-                            Text(text = "$${item.price}")
-                            Text(text = "${item.quantity}")
+                        Row(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(text = item.name)
+                                Text(text = "$${item.price}")
+                                Text(text = "${item.quantity}")
+                            }
+                            IconButton(onClick = {
+                                val productPrice = ProductPrice(item.name, item.price, null)
+                                deleteFromDatabase(productPrice,item.store_id){itemsState.value = itemsState.value.filter{it!=item}}}){
+                                Icon(Icons.Filled.Delete, contentDescription = "Delete")
+                            }
                         }
                     }
                 }
@@ -825,6 +836,41 @@ fun addToDatabase(
             }
     }
 }
+
+@RequiresApi(Build.VERSION_CODES.O)
+fun deleteFromDatabase(
+    product: ProductPrice,
+    nearestStoreId: String,
+    onItemDeleted:() -> Unit
+) {
+    val db = Firebase.firestore
+    getGroceryList { listRef ->
+        db.collection("items")
+            .whereEqualTo("grocery_list", listRef)
+            .whereEqualTo("store_id", nearestStoreId)
+            .whereEqualTo("name", product.name)
+            .get()
+            .addOnSuccessListener { documents ->
+                if (!documents.isEmpty) {
+                    val doc = documents.documents[0]
+                    doc.reference.delete()
+                        .addOnSuccessListener {
+                            Log.d("DATABASE", "DocumentSnapshot successfully deleted!")
+                            onItemDeleted()
+                        }
+                        .addOnFailureListener { e ->
+                            Log.w("DATABASE", "Error deleting document", e)
+                        }
+                } else {
+                    Log.d("DATABASE", "Item not found in database")
+                }
+            }
+            .addOnFailureListener { e ->
+                Log.w("DATABASE", "Error checking for existing item", e)
+            }
+    }
+}
+
 
 @Composable
 fun SwipeableProductItem(

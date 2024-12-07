@@ -105,5 +105,6 @@ dependencies {
     implementation(libs.ui.graphics)
     implementation(libs.accompanist.insets.ui)
     implementation (libs.androidx.animation.core)
+    implementation(libs.firebase.auth)
 
 }
