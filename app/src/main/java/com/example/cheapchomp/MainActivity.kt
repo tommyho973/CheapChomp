@@ -508,8 +508,9 @@ fun GroceryListScreen(
     var totalPrice = 0f
     for (item in items) {
         val priceString = item.price.replace("[^\\d.]".toRegex(), "")
+        val quantity = item.quantity
         val priceFloat = priceString.toFloatOrNull() ?: 0f
-        totalPrice += priceFloat
+        totalPrice += (priceFloat * quantity)
     }
     val totalPriceStr = String.format("%.2f", totalPrice)
     Column(modifier = Modifier.fillMaxSize()) {
@@ -526,18 +527,32 @@ fun GroceryListScreen(
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(8.dp),
+                            .padding(8.dp)
+                        ,shape = RoundedCornerShape(12.dp)
                     ) {
-                        Row(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Text(text = item.name)
-                                Text(text = "$${item.price}")
-                                Text(text = "${item.quantity}")
-                            }
-                            IconButton(onClick = {
-                                val productPrice = ProductPrice(item.name, item.price, null)
-                                deleteFromDatabase(productPrice,item.store_id){itemsState.value = itemsState.value.filter{it!=item}}}){
-                                Icon(Icons.Filled.Delete, contentDescription = "Delete")
+                        Box(
+                            modifier = Modifier
+                                .background(Color.White)
+                                .padding(16.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Text(text = item.name)
+                                    Text(text = "$${item.price}")
+                                    Text(text = "${item.quantity}")
+                                }
+                                IconButton(onClick = {
+                                    val productPrice = ProductPrice(item.name, item.price, null)
+                                    deleteFromDatabase(
+                                        productPrice,
+                                        item.store_id
+                                    ) { itemsState.value = itemsState.value.filter { it != item } }
+                                }) {
+                                    Icon(Icons.Filled.Delete, contentDescription = "Delete")
+                                }
                             }
                         }
                     }
