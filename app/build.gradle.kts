@@ -106,5 +106,11 @@ dependencies {
     implementation(libs.accompanist.insets.ui)
     implementation (libs.androidx.animation.core)
     implementation(libs.firebase.auth)
+    implementation (libs.androidx.work.runtime.ktx.v290)
+    implementation (libs.androidx.lifecycle.viewmodel.compose)
+    implementation (libs.androidx.lifecycle.runtime.compose)
+    implementation (libs.retrofit)
+    implementation (libs.converter.moshi)
+    implementation (libs.logging.interceptor)
 
 }
