@@ -20,6 +20,8 @@ import com.example.cheapchomp.ui.screens.RegistrationScreen
 import com.example.cheapchomp.ui.theme.CheapChompTheme
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 
 class MainActivity : ComponentActivity() {
     @RequiresApi(Build.VERSION_CODES.O)
@@ -53,11 +55,6 @@ fun mainScreen() {
         }
         composable("GroceryListScreen") {
             GroceryListScreen(navController = navController, auth = auth)
-        }
-        composable("GoogleMapScreen") { backStackEntry ->
-            val latitude = backStackEntry.arguments?.getString("latitude")?.toDoubleOrNull() ?: 0.0
-            val longitude = backStackEntry.arguments?.getString("longitude")?.toDoubleOrNull() ?: 0.0
-            GoogleMapScreen(navController = navController, latitude = latitude, longitude = longitude)
         }
         composable(
             route = "KrogerProductScreen/{latitude}/{longitude}",
