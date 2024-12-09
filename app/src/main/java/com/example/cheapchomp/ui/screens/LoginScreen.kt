@@ -25,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -34,6 +35,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -49,6 +51,8 @@ fun LoginScreen(
     navController: NavController,
     auth: FirebaseAuth
 ) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var isLoggedIn by rememberSaveable { mutableStateOf(false) }
@@ -202,11 +206,21 @@ fun LoginScreen(
     // Add LaunchedEffect for navigation
     LaunchedEffect(key1 = isLoggedIn) {
         if (isLoggedIn) {
-            navController.navigate("GoogleMapScreen") { // or "KrogerProductScreen/{latitude}/{longitude}"
-                // Pass arguments if needed
-                popUpTo("LoginScreen") {
-                    inclusive = true
-                } // Optional: Remove LoginScreen from back stack
+            val locationService = LocationService(context)
+            try {
+                val location = locationService.getCurrentLocation()
+                navController.navigate(
+                    "KrogerProductScreen/${location.latitude}/${location.longitude}"
+                ) {
+                    popUpTo("LoginScreen") { inclusive = true }
+                }
+            } catch (e: Exception) {
+                // If location fails, use default San Francisco coordinates
+                navController.navigate(
+                    "KrogerProductScreen/37.7749/-122.4194"
+                ) {
+                    popUpTo("LoginScreen") { inclusive = true }
+                }
             }
         }
     }
