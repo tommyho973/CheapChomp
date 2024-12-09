@@ -59,9 +59,21 @@ fun mainScreen() {
             val longitude = backStackEntry.arguments?.getString("longitude")?.toDoubleOrNull() ?: 0.0
             GoogleMapScreen(navController = navController, latitude = latitude, longitude = longitude)
         }
-        composable("KrogerProductScreen/{latitude}/{longitude}") { backStackEntry ->
-            val latitude = backStackEntry.arguments?.getString("latitude")?.toDoubleOrNull() ?: 0.0
-            val longitude = backStackEntry.arguments?.getString("longitude")?.toDoubleOrNull() ?: 0.0
+        composable(
+            route = "KrogerProductScreen/{latitude}/{longitude}",
+            arguments = listOf(
+                navArgument("latitude") {
+                    type = NavType.StringType
+                    defaultValue = "37.7749"  // San Francisco default
+                },
+                navArgument("longitude") {
+                    type = NavType.StringType
+                    defaultValue = "-122.4194"  // San Francisco default
+                }
+            )
+        ) { backStackEntry ->
+            val latitude = backStackEntry.arguments?.getString("latitude")?.toDoubleOrNull() ?: 37.7749
+            val longitude = backStackEntry.arguments?.getString("longitude")?.toDoubleOrNull() ?: -122.4194
             KrogerProductScreen(navController = navController, latitude = latitude, longitude = longitude)
         }
     }
