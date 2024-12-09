@@ -165,6 +165,7 @@ class DatabaseRepository {
                         id = doc.id,
                         name = doc.getString("name") ?: return@mapNotNull null,
                         price = doc.getString("price") ?: return@mapNotNull null,
+                        quantity = doc.getLong("quantity")?.toInt() ?: 0,
                         storeId = doc.getString("store_id") ?: return@mapNotNull null
                     )
                 }
@@ -189,6 +190,7 @@ class DatabaseRepository {
         val id: String,
         val name: String,
         val price: String,
+        val quantity: Int,
         val storeId: String
     )
 }

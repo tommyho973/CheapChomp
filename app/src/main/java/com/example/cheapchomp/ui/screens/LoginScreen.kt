@@ -59,7 +59,8 @@ fun LoginScreen(
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     if(isLandscape){
         Row(){
-            Column(modifier = Modifier.weight(1f)
+            Column(modifier = Modifier
+                .weight(1f)
                 .fillMaxSize()
                 .wrapContentSize(Alignment.Center),
                 horizontalAlignment = Alignment.CenterHorizontally,

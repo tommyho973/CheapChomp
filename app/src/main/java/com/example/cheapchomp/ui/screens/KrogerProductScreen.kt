@@ -83,6 +83,10 @@ import com.google.firebase.Firebase
 import com.google.firebase.firestore.firestore
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
+import android.content.res.Configuration
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
+import androidx.compose.ui.platform.LocalConfiguration
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -99,124 +103,234 @@ fun KrogerProductScreen(
     val nearestStoreId by viewModel.nearestStoreId.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
 
+    // Get current orientation
+    val configuration = LocalConfiguration.current
+    val screenOrientation = when(configuration.orientation) {
+        Configuration.ORIENTATION_LANDSCAPE -> "Landscape"
+        else -> "Portrait"
+    }
+
     // Initialize store data when screen is first created
     LaunchedEffect(latitude, longitude) {
         viewModel.initializeStore(latitude, longitude)
     }
 
-    Column(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text("Kroger Product Lookup", style = MaterialTheme.typography.headlineMedium)
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Search TextField
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                TextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    modifier = Modifier.weight(1f),
-                    label = { Text("Enter product name") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = {
-                        viewModel.searchProducts(searchQuery)
-                    })
-                )
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                Button(
-                    onClick = { viewModel.searchProducts(searchQuery) },
-                    enabled = uiState != KrogerProductUiState.Loading
-                ) {
-                    if (uiState is KrogerProductUiState.Loading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            color = Color.White
-                        )
-                    } else {
-                        Text("Search")
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Display store and location info
-            Text("Latitude: $latitude")
-            Text("Longitude: $longitude")
-            if (nearestStoreId.isNotEmpty()) {
-                Text("Nearest Store ID: $nearestStoreId")
-            }
-
-            // Display content based on UI state
-            when (uiState) {
-                is KrogerProductUiState.Loading -> {
-                    CircularProgressIndicator(
-                        modifier = Modifier.padding(16.dp)
+    when (screenOrientation) {
+        "Landscape" -> {
+            Row(modifier = Modifier.fillMaxSize()) {
+                // Navigation Rail
+                NavigationRail(containerColor = Color(0xFF56AE57)) {
+                    NavigationRailItem(
+                        icon = { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") },
+                        label = { Text("Back") },
+                        selected = false,
+                        onClick = { navController.navigateUp() },
+                        modifier = Modifier.weight(1f)
+                    )
+                    NavigationRailItem(
+                        icon = { Icon(Icons.Filled.Search, contentDescription = "Product Search") },
+                        label = { Text("Search") },
+                        selected = true,
+                        onClick = { /* current screen */ },
+                        modifier = Modifier.weight(1f)
+                    )
+                    NavigationRailItem(
+                        icon = { Icon(Icons.Filled.ShoppingCart, contentDescription = "Grocery List") },
+                        label = { Text("Grocery List") },
+                        selected = false,
+                        onClick = { navController.navigate("GroceryListScreen") },
+                        modifier = Modifier.weight(1f)
                     )
                 }
-                is KrogerProductUiState.Success -> {
-                    val products = (uiState as KrogerProductUiState.Success).products
-                    val bottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(bottom = bottomPadding)
+
+                // Main Content
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text("Kroger Product Lookup", style = MaterialTheme.typography.headlineMedium)
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Search Section
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        items(products) { product ->
-                            SwipeableProductItem(
-                                product = product,
-                                nearestStoreId = nearestStoreId,
-                                onAddToDatabase = { quantity ->
-                                    viewModel.addToDatabase(product, quantity)
-                                }
-                            )
+                        TextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            modifier = Modifier.weight(1f),
+                            label = { Text("Enter product name") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                            keyboardActions = KeyboardActions(onSearch = {
+                                viewModel.searchProducts(searchQuery)
+                            })
+                        )
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        Button(
+                            onClick = { viewModel.searchProducts(searchQuery) },
+                            enabled = uiState != KrogerProductUiState.Loading
+                        ) {
+                            if (uiState is KrogerProductUiState.Loading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    color = Color.White
+                                )
+                            } else {
+                                Text("Search")
+                            }
                         }
                     }
+
+                    // Results Section
+                    when (uiState) {
+                        is KrogerProductUiState.Loading -> {
+                            CircularProgressIndicator(
+                                modifier = Modifier.padding(16.dp)
+                            )
+                        }
+                        is KrogerProductUiState.Success -> {
+                            val products = (uiState as KrogerProductUiState.Success).products
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                items(products) { product ->
+                                    SwipeableProductItem(
+                                        product = product,
+                                        nearestStoreId = nearestStoreId,
+                                        onAddToDatabase = { quantity ->
+                                            viewModel.addToDatabase(product, quantity)
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                        is KrogerProductUiState.Error -> {
+                            Text(
+                                text = (uiState as KrogerProductUiState.Error).message,
+                                color = Color.Red,
+                                modifier = Modifier.padding(16.dp)
+                            )
+                        }
+                        else -> { /* Initial state */ }
+                    }
                 }
-                is KrogerProductUiState.Error -> {
-                    Text(
-                        text = (uiState as KrogerProductUiState.Error).message,
-                        color = Color.Red,
-                        modifier = Modifier.padding(16.dp)
-                    )
-                }
-                else -> { /* Initial state, show nothing */ }
             }
         }
+        else -> {
+            // Portrait mode - Keep your existing layout
+            Column(modifier = Modifier.fillMaxSize()) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text("Kroger Product Lookup", style = MaterialTheme.typography.headlineMedium)
 
-        // Bottom Navigation
-        BottomNavigation(backgroundColor = Color(0xFF56AE57),elevation = 8.dp) {
-            BottomNavigationItem(
-                icon = { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") },
-                label = { Text("Back") },
-                selected = false,
-                onClick = { navController.navigateUp() }
-            )
-            BottomNavigationItem(
-                icon = { Icon(Icons.Filled.Search, contentDescription = "Product Search") },
-                label = { Text("Product Search") },
-                selected = true,
-                onClick = { /* current screen! do nothing :> */ }
-            )
-            BottomNavigationItem(
-                icon = { Icon(Icons.Filled.ShoppingCart, contentDescription = "Grocery List") },
-                label = { Text("Grocery List") },
-                selected = false,
-                onClick = { navController.navigate("GroceryListScreen") }
-            )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Search TextField
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            modifier = Modifier.weight(1f),
+                            label = { Text("Enter product name") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                            keyboardActions = KeyboardActions(onSearch = {
+                                viewModel.searchProducts(searchQuery)
+                            })
+                        )
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        Button(
+                            onClick = { viewModel.searchProducts(searchQuery) },
+                            enabled = uiState != KrogerProductUiState.Loading
+                        ) {
+                            if (uiState is KrogerProductUiState.Loading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    color = Color.White
+                                )
+                            } else {
+                                Text("Search")
+                            }
+                        }
+                    }
+
+                    when (uiState) {
+                        is KrogerProductUiState.Loading -> {
+                            CircularProgressIndicator(
+                                modifier = Modifier.padding(16.dp)
+                            )
+                        }
+                        is KrogerProductUiState.Success -> {
+                            val products = (uiState as KrogerProductUiState.Success).products
+                            val bottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+                            LazyColumn(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(bottom = bottomPadding)
+                            ) {
+                                items(products) { product ->
+                                    SwipeableProductItem(
+                                        product = product,
+                                        nearestStoreId = nearestStoreId,
+                                        onAddToDatabase = { quantity ->
+                                            viewModel.addToDatabase(product, quantity)
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                        is KrogerProductUiState.Error -> {
+                            Text(
+                                text = (uiState as KrogerProductUiState.Error).message,
+                                color = Color.Red,
+                                modifier = Modifier.padding(16.dp)
+                            )
+                        }
+                        else -> { /* Initial state */ }
+                    }
+                }
+
+                // Bottom Navigation
+                BottomNavigation(
+                    backgroundColor = Color(0xFF56AE57),
+                    elevation = 8.dp
+                ) {
+                    BottomNavigationItem(
+                        icon = { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") },
+                        label = { Text("Back") },
+                        selected = false,
+                        onClick = { navController.navigateUp() }
+                    )
+                    BottomNavigationItem(
+                        icon = { Icon(Icons.Filled.Search, contentDescription = "Product Search") },
+                        label = { Text("Search") },
+                        selected = true,
+                        onClick = { /* current screen */ }
+                    )
+                    BottomNavigationItem(
+                        icon = { Icon(Icons.Filled.ShoppingCart, contentDescription = "Grocery List") },
+                        label = { Text("Grocery List") },
+                        selected = false,
+                        onClick = { navController.navigate("GroceryListScreen") }
+                    )
+                }
+            }
         }
     }
 }
