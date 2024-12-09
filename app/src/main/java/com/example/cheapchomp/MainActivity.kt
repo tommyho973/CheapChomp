@@ -9,9 +9,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.cheapchomp.ui.screens.GoogleMapScreen
 import com.example.cheapchomp.ui.screens.GroceryListScreen
 import com.example.cheapchomp.ui.screens.KrogerProductScreen
