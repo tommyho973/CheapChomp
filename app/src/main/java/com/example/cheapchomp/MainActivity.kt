@@ -66,12 +66,15 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material.BottomNavigationDefaults
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.mutableFloatStateOf
@@ -80,6 +83,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.mapSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -96,10 +101,14 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -110,6 +119,7 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+//import androidx.paging.map
 import coil.compose.AsyncImage
 import com.example.cheapchomp.ui.theme.CheapChompTheme
 import com.google.android.engage.shopping.datamodel.ShoppingCart
@@ -130,6 +140,7 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
+import kotlin.text.append
 
 class MainActivity : ComponentActivity() {
     @RequiresApi(Build.VERSION_CODES.O)
@@ -311,8 +322,9 @@ fun LoginScreen(
 
     if(isLandscape){
         Row(){
-            Column(modifier = Modifier.weight(1f)
-                    .fillMaxSize()
+            Column(modifier = Modifier
+                .weight(1f)
+                .fillMaxSize()
                 .wrapContentSize(Alignment.Center),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center){
@@ -470,89 +482,196 @@ fun RegistrationScreen(
     navController: NavController,
     auth: FirebaseAuth
 ) {
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var confirmPassword by remember { mutableStateOf("") }
-    var message by remember { mutableStateOf("") } // display whether registration was successful
-    var textFieldSize2 by remember{mutableStateOf(IntSize.Zero)}
+    var email by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
+    var confirmPassword by rememberSaveable { mutableStateOf("") }
+    var message by rememberSaveable { mutableStateOf("") } // display whether registration was successful
+    val intSizeSaver = Saver<IntSize, Pair<Int,Int>>(save = {it.width to it.height}, restore = {IntSize(it.first, it.second)})
+    var textFieldSize2 by rememberSaveable(stateSaver = intSizeSaver) { mutableStateOf(IntSize.Zero) }
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
-
-    Column (
-        modifier = Modifier
-            .fillMaxSize()
-            .wrapContentSize(Alignment.Center),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ){
-        Text("Sign Up", style = MaterialTheme.typography.headlineMedium)
-        Spacer(modifier = Modifier.height(16.dp))
-        // email textfield
-        TextField(
-            value = email,
-            onValueChange = { email = it },
-            label = { Text("Email") },
-            modifier = Modifier.onGloballyPositioned { coordinates ->textFieldSize2 = coordinates.size}
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        // password textfield
-        TextField(
-            value = password,
-            onValueChange = { password = it },
-            label = { Text("Password") },
-            visualTransformation = PasswordVisualTransformation()
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        // confirm password textfield
-        TextField(
-            value = confirmPassword,
-            onValueChange = { confirmPassword = it },
-            label = { Text("Confirm Password") },
-            visualTransformation = PasswordVisualTransformation()
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Row {
-            Button(
-                onClick = {
-                    if (password != confirmPassword) {
-                        message = "Passwords do not match!"
-                    } else {
-                        auth.createUserWithEmailAndPassword(email, password) // firebase authentication
-                            .addOnCompleteListener { task ->
-                                if (task.isSuccessful) {
-                                    message = "Account created successfully!"
-                                    val db = Firebase.firestore
-                                    val user = hashMapOf(
-                                        "email" to email
-                                    )
-                                    // Add a new document with a generated ID
-                                    db.collection("users")
-                                        .add(user)
-
-                                    getUserRef { userRef ->
-                                        val grocery_list = hashMapOf(
-                                            "favorited" to false,
-                                            "user" to userRef
+    if(isLandscape) {
+        Row(modifier = Modifier.fillMaxSize()) {
+            Column( modifier = Modifier
+                .padding(start = 16.dp, top = 16.dp)
+                .weight(1f)
+            ) {
+                Text("Sign Up", style = MaterialTheme.typography.headlineMedium)
+                Spacer(modifier = Modifier.height(16.dp))
+                // email textfield
+                TextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    label = { Text("Email") },
+                    modifier = Modifier
+                        .width(400.dp)
+                        .onGloballyPositioned { coordinates ->
+                            textFieldSize2 = coordinates.size
+                        }
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                // password textfield
+                TextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("Password") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.width(400.dp)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                // confirm password textfield
+                TextField(
+                    value = confirmPassword,
+                    onValueChange = { confirmPassword = it },
+                    label = { Text("Confirm Password") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.width(400.dp)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = {
+                        if (password != confirmPassword) {
+                            message = "Passwords do not match!"
+                        } else {
+                            auth.createUserWithEmailAndPassword(
+                                email,
+                                password
+                            ) // firebase authentication
+                                .addOnCompleteListener { task ->
+                                    if (task.isSuccessful) {
+                                        message = "Account created successfully!"
+                                        val db = Firebase.firestore
+                                        val user = hashMapOf(
+                                            "email" to email
                                         )
-                                        db.collection("grocery_list")
-                                            .add(grocery_list)
-                                    }
-                                    navController.navigate("LoginScreen")
-                                } else {
-                                    message = "Error creating account: ${task.exception?.message}"
-                                }
-                            }
-                    }
-                }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF56AE57)),
-                modifier = Modifier.width(with(LocalDensity.current){textFieldSize2.width.toDp()})) {
-                Text("Create Account")
-            }
+                                        // Add a new document with a generated ID
+                                        db.collection("users")
+                                            .add(user)
 
+                                        getUserRef { userRef ->
+                                            val grocery_list = hashMapOf(
+                                                "favorited" to false,
+                                                "user" to userRef
+                                            )
+                                            db.collection("grocery_list")
+                                                .add(grocery_list)
+                                        }
+                                        navController.navigate("LoginScreen")
+                                    } else {
+                                        message =
+                                            "Error creating account: ${task.exception?.message}"
+                                    }
+                                }
+                        }
+                    }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF56AE57)),
+                    modifier = Modifier.width(with(LocalDensity.current) { textFieldSize2.width.toDp() })
+                ) {
+                    Text("Create Account")
+                }
+            }
+            Column(modifier = Modifier
+                .padding(top = 16.dp, end = 16.dp)
+                .weight(.75f)) {
+                Image(painter = painterResource(id = R.drawable.logo), contentDescription = "Logo", modifier = Modifier.weight(1f))
+                Text(
+                    text = "Already have an account?"
+                )
+                Text(text = "Login", modifier = Modifier.clickable(onClick = { navController.navigate("LoginScreen") }), color = Color(0xFF56AE57))
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(message, modifier = Modifier.widthIn(max = 250.dp)) // display success or fail
+            }
         }
-        Button(onClick = { navController.navigate("LoginScreen") },colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF56AE57)),modifier = Modifier.width(with(LocalDensity.current){textFieldSize2.width.toDp()})) {
-            Text("Back to Login")
+    }
+    else {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .wrapContentSize(Alignment.Center),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text("Sign Up", style = MaterialTheme.typography.headlineMedium)
+            Spacer(modifier = Modifier.height(16.dp))
+            // email textfield
+            TextField(
+                value = email,
+                onValueChange = { email = it },
+                label = { Text("Email") },
+                modifier = Modifier.onGloballyPositioned { coordinates ->
+                    textFieldSize2 = coordinates.size
+                }
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            // password textfield
+            TextField(
+                value = password,
+                onValueChange = { password = it },
+                label = { Text("Password") },
+                visualTransformation = PasswordVisualTransformation()
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            // confirm password textfield
+            TextField(
+                value = confirmPassword,
+                onValueChange = { confirmPassword = it },
+                label = { Text("Confirm Password") },
+                visualTransformation = PasswordVisualTransformation()
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Row {
+                Button(
+                    onClick = {
+                        if (password != confirmPassword) {
+                            message = "Passwords do not match!"
+                        } else {
+                            auth.createUserWithEmailAndPassword(
+                                email,
+                                password
+                            ) // firebase authentication
+                                .addOnCompleteListener { task ->
+                                    if (task.isSuccessful) {
+                                        message = "Account created successfully!"
+                                        val db = Firebase.firestore
+                                        val user = hashMapOf(
+                                            "email" to email
+                                        )
+                                        // Add a new document with a generated ID
+                                        db.collection("users")
+                                            .add(user)
+
+                                        getUserRef { userRef ->
+                                            val grocery_list = hashMapOf(
+                                                "favorited" to false,
+                                                "user" to userRef
+                                            )
+                                            db.collection("grocery_list")
+                                                .add(grocery_list)
+                                        }
+                                        navController.navigate("LoginScreen")
+                                    } else {
+                                        message =
+                                            "Error creating account: ${task.exception?.message}"
+                                    }
+                                }
+                        }
+                    }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF56AE57)),
+                    modifier = Modifier.width(with(LocalDensity.current) { textFieldSize2.width.toDp() })
+                ) {
+                    Text("Create Account")
+                }
+
+            }
+            Button(
+                onClick = { navController.navigate("LoginScreen") },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF56AE57)),
+                modifier = Modifier.width(with(LocalDensity.current) { textFieldSize2.width.toDp() })
+            ) {
+                Text("Back to Login")
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(message, modifier = Modifier.widthIn(max = 250.dp)) // display success or fail
         }
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(message, modifier = Modifier.widthIn(max = 250.dp)) // display success or fail
     }
 }
 
@@ -620,7 +739,9 @@ fun GroceryListScreen(
                                 .padding(16.dp)
                         ) {
                             Row(
-                                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Column(modifier = Modifier.padding(16.dp)) {
@@ -658,7 +779,7 @@ fun GroceryListScreen(
             )
             BottomNavigationItem(
                 icon = { Icon(Icons.Filled.Search, contentDescription = "Product Search") },
-                label = { Text("Product Search") },
+                label = { Text("Search") },
                 selected = false,
                 onClick = { navController.navigate("GoogleMapScreen") }
             )
@@ -682,13 +803,18 @@ fun KrogerProductScreen(
     longitude: Double
 ) {
     val krogerApiService = remember { KrogerApiService() }
-    var nearestStoreId by remember { mutableStateOf("") }
-    var productPrice by remember { mutableStateOf<ProductPrice?>(null) }
-    var productList by remember { mutableStateOf<List<ProductPrice?>>(emptyList()) }
-    var errorMessage by remember { mutableStateOf("") }
-    var searchQuery by remember { mutableStateOf("") }
-    var isSearching by remember { mutableStateOf(false) }
+    var nearestStoreId by rememberSaveable { mutableStateOf("") }
+    var productPrice by rememberSaveable { mutableStateOf<ProductPrice?>(null) }
+    var productList by rememberSaveable{ mutableStateOf<List<ProductPrice>>(emptyList()) }
+    var errorMessage by rememberSaveable { mutableStateOf("") }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    var isSearching by rememberSaveable { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
+    val configuration = LocalConfiguration.current
+    val screenOrientation = when(configuration.orientation) {
+        Configuration.ORIENTATION_LANDSCAPE -> "Landscape"
+        else -> "Portrait"
+    }
 
     // Initial store and product lookup
     LaunchedEffect(latitude, longitude) {
@@ -737,126 +863,229 @@ fun KrogerProductScreen(
             }
         }
     }
-
-    Column(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        // Existing content moved inside a Column with fillMaxSize
-        // For Nav vs Content Positioning Purposes
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text("Kroger Product Lookup", style = MaterialTheme.typography.headlineMedium)
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Search TextField
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                TextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    modifier = Modifier.weight(1f),
-                    label = { Text("Enter product name") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(
-                        imeAction = ImeAction.Search
-                    ),
-                    keyboardActions = KeyboardActions(
-                        onSearch = { performSearch() }
-                    )
-                )
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                Button(
-                    onClick = { performSearch()},
-                    enabled = !isSearching && nearestStoreId.isNotEmpty()
-                ) {
-                    if (isSearching) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            color = Color.Black
+    when(screenOrientation){
+        "Landscape" -> {
+            Row(modifier = Modifier.fillMaxSize()) {
+                Column(){
+                    NavigationRail(containerColor = Color(0xFF56AE57)){
+                        NavigationRailItem(
+                            icon = { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") },
+                            label = { Text("Back") },
+                            selected = false,
+                            onClick = { navController.navigateUp() },
+                            modifier = Modifier.weight(1f)
                         )
-                    } else {
-                        Text("Search")
+                        NavigationRailItem(
+                            icon = { Icon(Icons.Filled.Search, contentDescription = "Product Search") },
+                            label = { Text("Search") },
+                            selected = true,
+                            onClick = { /* current screen! do nothing :> */ },
+                            modifier = Modifier.weight(1f)
+                        )
+                        NavigationRailItem(
+                            icon = { Icon(Icons.Filled.ShoppingCart, contentDescription = "Grocery List") },
+                            label = { Text("Grocery List") },
+                            selected = false,
+                            onClick = { navController.navigate("GroceryListScreen") },
+                            modifier = Modifier.weight(1f)
+                        )
                     }
                 }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Display store and location info
-            Text("Latitude: $latitude")
-            Text("Longitude: $longitude")
-
-            if (nearestStoreId.isNotEmpty()) {
-                Text("Nearest Store ID: $nearestStoreId")
-            }
-
-            // Display product info
-            if (productList.isNotEmpty()) {
-                val db = Firebase.firestore
-                Spacer(modifier = Modifier.height(16.dp))
-                val bottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-                LazyColumn (
+                Column(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(bottom = bottomPadding)
-                ){
-                    itemsIndexed(productList.filter{
-                        it?.price != "N/A"
-                    }) { index, product ->
-                        product?.let {
-                            SwipeableProductItem(
-                                product = it,
-                                nearestStoreId = nearestStoreId,
-                                onAddToDatabase = { quantity ->
-                                    Log.d("DATABASE", "Quantity being passed to addToDatabase: $quantity")
-                                    addToDatabase(it, nearestStoreId, quantity)
-                                }
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text("Kroger Product Lookup", style = MaterialTheme.typography.headlineMedium)
+                    TextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        label = { Text("Enter product name") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            imeAction = ImeAction.Search
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onSearch = { performSearch() }
+                        )
+                    )
+                    Button(
+                        onClick = { performSearch()},
+                        enabled = !isSearching && nearestStoreId.isNotEmpty()
+                    ) {
+                        if (isSearching) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                color = Color.Black
                             )
+                        } else {
+                            Text("Search")
                         }
                     }
                 }
-            }
+                Column() {
+                    if (productList.isNotEmpty()) {
+                        val db = Firebase.firestore
+                        Spacer(modifier = Modifier.height(16.dp))
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxSize()
+                        ) {
+                            itemsIndexed(productList.filter {
+                                it?.price != "N/A"
+                            }) { index, product ->
+                                product?.let {
+                                    SwipeableProductItem(
+                                        product = it,
+                                        nearestStoreId = nearestStoreId,
+                                        onAddToDatabase = { quantity ->
+                                            Log.d(
+                                                "DATABASE",
+                                                "Quantity being passed to addToDatabase: $quantity"
+                                            )
+                                            addToDatabase(it, nearestStoreId, quantity)
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
 
-            // Error handling
-            if (errorMessage.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = errorMessage,
-                    color = Color.Red,
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                    // Error handling
+                    if (errorMessage.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = errorMessage,
+                            color = Color.Red,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+
             }
         }
+        else -> {
+            Column(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                // Existing content moved inside a Column with fillMaxSize
+                // For Nav vs Content Positioning Purposes
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text("Kroger Product Lookup", style = MaterialTheme.typography.headlineMedium)
 
-        // Bottom Navigation
-        BottomNavigation(backgroundColor = Color(0xFF56AE57),elevation = 8.dp) {
-            BottomNavigationItem(
-                icon = { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") },
-                label = { Text("Back") },
-                selected = false,
-                onClick = { navController.navigateUp() }
-            )
-            BottomNavigationItem(
-                icon = { Icon(Icons.Filled.Search, contentDescription = "Product Search") },
-                label = { Text("Product Search") },
-                selected = true,
-                onClick = { /* current screen! do nothing :> */ }
-            )
-            BottomNavigationItem(
-                icon = { Icon(Icons.Filled.ShoppingCart, contentDescription = "Grocery List") },
-                label = { Text("Grocery List") },
-                selected = false,
-                onClick = { navController.navigate("GroceryListScreen") }
-            )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Search TextField
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            modifier = Modifier.weight(1f),
+                            label = { Text("Enter product name") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(
+                                imeAction = ImeAction.Search
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onSearch = { performSearch() }
+                            )
+                        )
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        Button(
+                            onClick = { performSearch()},
+                            enabled = !isSearching && nearestStoreId.isNotEmpty()
+                        ) {
+                            if (isSearching) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    color = Color.Black
+                                )
+                            } else {
+                                Text("Search")
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Display store and location info
+                    Text("Latitude: $latitude")
+                    Text("Longitude: $longitude")
+
+                    if (nearestStoreId.isNotEmpty()) {
+                        Text("Nearest Store ID: $nearestStoreId")
+                    }
+
+                    // Display product info
+                    if (productList.isNotEmpty()) {
+                        val db = Firebase.firestore
+                        Spacer(modifier = Modifier.height(16.dp))
+                        val bottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+                        LazyColumn (
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(bottom = bottomPadding)
+                        ){
+                            itemsIndexed(productList.filter{
+                                it?.price != "N/A"
+                            }) { index, product ->
+                                product?.let {
+                                    SwipeableProductItem(
+                                        product = it,
+                                        nearestStoreId = nearestStoreId,
+                                        onAddToDatabase = { quantity ->
+                                            Log.d("DATABASE", "Quantity being passed to addToDatabase: $quantity")
+                                            addToDatabase(it, nearestStoreId, quantity)
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Error handling
+                    if (errorMessage.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = errorMessage,
+                            color = Color.Red,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+
+                // Bottom Navigation
+                BottomNavigation(backgroundColor = Color(0xFF56AE57),elevation = 8.dp) {
+                    BottomNavigationItem(
+                        icon = { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") },
+                        label = { Text("Back") },
+                        selected = false,
+                        onClick = { navController.navigateUp() }
+                    )
+                    BottomNavigationItem(
+                        icon = { Icon(Icons.Filled.Search, contentDescription = "Product Search") },
+                        label = { Text("Search") },
+                        selected = true,
+                        onClick = { /* current screen! do nothing :> */ }
+                    )
+                    BottomNavigationItem(
+                        icon = { Icon(Icons.Filled.ShoppingCart, contentDescription = "Grocery List") },
+                        label = { Text("Grocery List") },
+                        selected = false,
+                        onClick = { navController.navigate("GroceryListScreen") }
+                    )
+                }
+            }
         }
     }
 }
@@ -1287,7 +1516,6 @@ fun getGroceryList(onResult: (DocumentReference) -> Unit) {
             }
     }
 }
-
 
 @Preview(showBackground = true)
 @Composable
