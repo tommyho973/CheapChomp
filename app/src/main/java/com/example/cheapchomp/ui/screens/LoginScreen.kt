@@ -18,11 +18,13 @@ import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
@@ -41,8 +43,12 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.cheapchomp.R
+import com.example.cheapchomp.ui.state.LoginUiState
+import com.example.cheapchomp.viewmodel.LoginViewModel
+import com.example.cheapchomp.viewmodel.LoginViewModelFactory
 import com.google.firebase.auth.FirebaseAuth
 
 @Composable
@@ -51,16 +57,21 @@ fun LoginScreen(
     navController: NavController,
     auth: FirebaseAuth
 ) {
-    val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
+    val viewModel: LoginViewModel = viewModel(
+        factory = LoginViewModelFactory(auth)
+    )
+    val uiState by viewModel.uiState.collectAsState()
+    val isLoggedIn by viewModel.isLoggedIn.collectAsState()
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
-    var isLoggedIn by rememberSaveable { mutableStateOf(false) }
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     var message by rememberSaveable { mutableStateOf("") } // display whether login was successful
     val intSizeSaver = Saver<IntSize, Pair<Int,Int>>(save = {it.width to it.height}, restore = {IntSize(it.first, it.second)})
     var textFieldSize by rememberSaveable(stateSaver = intSizeSaver) { mutableStateOf(IntSize.Zero) }
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
     if(isLandscape){
         Row(){
             Column(modifier = Modifier
@@ -91,20 +102,17 @@ fun LoginScreen(
                 Spacer(modifier = Modifier.height(16.dp))
                 // sign in with email & password
                 Button(
-                    onClick = {
-                        auth.signInWithEmailAndPassword(email, password) // firebase authentication
-                            .addOnCompleteListener { task ->
-                                if (task.isSuccessful) {
-                                    message = "Login successful :)"
-                                    isLoggedIn = true
-                                } else {
-                                    message = "Login failed: ${task.exception?.message}"
-                                }
-                            }
-                    }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF56AE57)),
+                    onClick = { viewModel.login(email, password) },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF56AE57)),
                     modifier = Modifier.width(with(LocalDensity.current) { textFieldSize.width.toDp() })
                 ) {
-                    Text("Login")
+                    when (uiState) {
+                        is LoginUiState.Loading -> CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = Color.White
+                        )
+                        else -> Text("Login")
+                    }
                 }
                 Row() {
                     Text("Don't have an account?")
@@ -161,20 +169,17 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(16.dp))
             // sign in with email & password
             Button(
-                onClick = {
-                    auth.signInWithEmailAndPassword(email, password) // firebase authentication
-                        .addOnCompleteListener { task ->
-                            if (task.isSuccessful) {
-                                message = "Login successful :)"
-                                isLoggedIn = true
-                            } else {
-                                message = "Login failed: ${task.exception?.message}"
-                            }
-                        }
-                }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF56AE57)),
+                onClick = { viewModel.login(email, password) },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF56AE57)),
                 modifier = Modifier.width(with(LocalDensity.current) { textFieldSize.width.toDp() })
             ) {
-                Text("Login")
+                when (uiState) {
+                    is LoginUiState.Loading -> CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = Color.White
+                    )
+                    else -> Text("Login")
+                }
             }
             Spacer(modifier = Modifier.height(16.dp))
             Row() {
@@ -204,7 +209,7 @@ fun LoginScreen(
         }
     }
     // Add LaunchedEffect for navigation
-    LaunchedEffect(key1 = isLoggedIn) {
+    LaunchedEffect(isLoggedIn) {
         if (isLoggedIn) {
             val locationService = LocationService(context)
             try {
@@ -215,14 +220,10 @@ fun LoginScreen(
                     popUpTo("LoginScreen") { inclusive = true }
                 }
             } catch (e: Exception) {
-                // If location fails, use default San Francisco coordinates
-                navController.navigate(
-                    "KrogerProductScreen/37.7749/-122.4194"
-                ) {
+                navController.navigate("KrogerProductScreen/37.7749/-122.4194") {
                     popUpTo("LoginScreen") { inclusive = true }
                 }
             }
         }
     }
-
 }
