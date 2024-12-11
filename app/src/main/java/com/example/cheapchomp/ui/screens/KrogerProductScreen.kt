@@ -201,7 +201,7 @@ fun KrogerProductScreen(
                                 modifier = Modifier.fillMaxSize()
                             ) {
                                 items(products) { product ->
-                                    SwipeableProductItem(
+                                    KrogerProductItem(
                                         product = product,
                                         nearestStoreId = nearestStoreId,
                                         onAddToDatabase = { quantity ->
@@ -285,7 +285,7 @@ fun KrogerProductScreen(
                                     .padding(bottom = bottomPadding)
                             ) {
                                 items(products) { product ->
-                                    SwipeableProductItem(
+                                    KrogerProductItem(
                                         product = product,
                                         nearestStoreId = nearestStoreId,
                                         onAddToDatabase = { quantity ->
@@ -348,7 +348,7 @@ fun ProductImage(
 }
 
 @Composable
-fun SwipeableProductItem(
+fun KrogerProductItem(
     product: ProductPrice,
     nearestStoreId: String,
     onAddToDatabase: (quantity: Int) -> Unit
@@ -524,7 +524,7 @@ fun SwipeableProductItem(
                             exit = fadeOut() + shrinkVertically()
                         ) {
                             Text(
-                                text = "Added ${lastAddedQuantity} item${if (lastAddedQuantity > 1) "s" else ""}",
+                                text = "Added $lastAddedQuantity item${if (lastAddedQuantity > 1) "s" else ""}",
                                 color = Color(0xFF56AE57),
                                 style = MaterialTheme.typography.bodySmall,
                                 modifier = Modifier.padding(top = 4.dp)

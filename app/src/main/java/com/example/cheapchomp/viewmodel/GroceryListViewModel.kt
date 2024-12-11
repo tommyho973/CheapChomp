@@ -1,5 +1,6 @@
 package com.example.cheapchomp.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.cheapchomp.repository.DatabaseRepository
@@ -22,12 +23,81 @@ class GroceryListViewModel(
     init {
         loadGroceryList()
     }
+    // Cache structure to hold deleted items temporarily
+    private data class DeletedItemCache(
+        val id: String,
+        val name: String,
+        val price: String,
+        val quantity: Int,
+        val storeId: String,
+        val isQuantityUpdate: Boolean = false
+    )
+
+    fun cacheItem(item: DatabaseRepository.GroceryItem, isQuantityUpdate: Boolean = true) {
+        recentlyDeletedItem = DeletedItemCache(
+            id = item.id,
+            name = item.name,
+            price = item.price,
+            quantity = item.quantity,
+            storeId = item.storeId,
+            isQuantityUpdate = isQuantityUpdate
+        )
+    }
+
+    private var recentlyDeletedItem: DeletedItemCache? = null
+
+    fun deleteItem(item: DatabaseRepository.GroceryItem) {
+        // Cache first
+        cacheItem(item, isQuantityUpdate = false)
+
+        // Then delete
+        viewModelScope.launch {
+            try {
+                Firebase.firestore.collection("items")
+                    .document(item.id)
+                    .delete()
+                    .addOnFailureListener { e ->
+                        _uiState.value = GroceryListUiState.Error(e.message ?: "Failed to delete item")
+                    }
+            } catch (e: Exception) {
+                _uiState.value = GroceryListUiState.Error(e.message ?: "Unknown error")
+            }
+        }
+    }
+
+    // Function to restore the recently deleted item
+    fun restoreRecentlyDeletedItem() {
+        val itemToRestore = recentlyDeletedItem ?: return
+
+        viewModelScope.launch {
+            try {
+                if (itemToRestore.isQuantityUpdate) {
+                    // For quantity changes, update the existing item
+                    updateItemQuantity(itemToRestore.id, itemToRestore.quantity)
+                } else {
+                    // For full deletions, create new item
+                    databaseRepository.getGroceryList { listRef ->
+                        Firebase.firestore.collection("items")
+                            .add(hashMapOf(
+                                "name" to itemToRestore.name,
+                                "price" to itemToRestore.price,
+                                "quantity" to itemToRestore.quantity,
+                                "store_id" to itemToRestore.storeId,
+                                "grocery_list" to listRef
+                            ))
+                    }
+                }
+                recentlyDeletedItem = null
+            } catch (e: Exception) {
+                _uiState.value = GroceryListUiState.Error(e.message ?: "Unknown error")
+            }
+        }
+    }
 
     private fun loadGroceryList() {
         viewModelScope.launch {
             _uiState.value = GroceryListUiState.Loading
             try {
-                // Check if user is authenticated
                 if (auth.currentUser == null) {
                     _uiState.value = GroceryListUiState.Error("User not authenticated")
                     return@launch
@@ -73,7 +143,7 @@ class GroceryListViewModel(
     fun updateItemQuantity(itemId: String, newQuantity: Int) {
         viewModelScope.launch {
             try {
-                databaseRepository.getGroceryList { listRef ->
+                databaseRepository.getGroceryList {
                     Firebase.firestore.collection("items")
                         .document(itemId)
                         .update("quantity", newQuantity)
@@ -87,18 +157,4 @@ class GroceryListViewModel(
         }
     }
 
-    fun deleteItem(itemId: String) {
-        viewModelScope.launch {
-            try {
-                Firebase.firestore.collection("items")
-                    .document(itemId)
-                    .delete()
-                    .addOnFailureListener { e ->
-                        _uiState.value = GroceryListUiState.Error(e.message ?: "Failed to delete item")
-                    }
-            } catch (e: Exception) {
-                _uiState.value = GroceryListUiState.Error(e.message ?: "Unknown error")
-            }
-        }
-    }
 }

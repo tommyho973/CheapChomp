@@ -1,7 +1,6 @@
 package com.example.cheapchomp.viewmodel
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import com.example.cheapchomp.repository.DatabaseRepository
 import com.example.cheapchomp.ui.state.RegistrationUiState
 import com.google.firebase.auth.FirebaseAuth

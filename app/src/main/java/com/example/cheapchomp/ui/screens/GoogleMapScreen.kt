@@ -71,9 +71,6 @@ class LocationService(private val context: Context) {
                 ) == PackageManager.PERMISSION_GRANTED
     }
 
-    companion object {
-        val FALLBACK_LOCATION = LatLng(37.7749, -122.4194) // San Francisco
-    }
 }
 
 @Composable
@@ -163,25 +160,3 @@ fun GoogleMapScreen(
     }
 }
 
-// private function to get the currentLocation using the API and pass it back to Composable, if it fails then we use a predetermined location
-private fun fetchLocation(
-    fusedLocationProviderClient: FusedLocationProviderClient,
-    onLocationFetched: (LatLng) -> Unit
-) {
-    try {
-        fusedLocationProviderClient.lastLocation.addOnSuccessListener { location ->
-            location?.let {
-                val latLng = LatLng(it.latitude, it.longitude)
-                Log.d("Location", "Fetched Location: $latLng")
-                onLocationFetched(latLng) // Pass the location back to Composable state
-            } ?: run {
-                // If lastLocation is null, use fallback location
-                val fallbackLatLng = LatLng(37.7749, -122.4194) // San Francisco coordinates
-                Log.d("Location", "Location is null, using fallback location")
-                onLocationFetched(fallbackLatLng)
-            }
-        }
-    } catch (e: SecurityException) {
-        Log.e("Location", "Location permission is not granted", e)
-    }
-}
