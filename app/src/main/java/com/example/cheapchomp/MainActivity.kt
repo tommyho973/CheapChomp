@@ -50,7 +50,7 @@ fun mainScreen(applicationContext: android.content.Context) {
     val room_db = Room.databaseBuilder(
         applicationContext,
         OfflineDatabase::class.java, "items_database"
-    ).allowMainThreadQueries().build()
+    ).allowMainThreadQueries().fallbackToDestructiveMigration().build()
 
 
     NavHost(navController = navController, startDestination = "LoginScreen") {

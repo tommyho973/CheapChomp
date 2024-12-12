@@ -1,6 +1,7 @@
 package com.example.cheapchomp.viewmodel
 
 import android.os.Build
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -11,6 +12,7 @@ import kotlinx.coroutines.launch
 import com.example.cheapchomp.repository.KrogerRepository
 import com.example.cheapchomp.repository.DatabaseRepository
 import com.example.cheapchomp.network.models.ProductPrice
+import com.example.cheapchomp.repository.CachedGroceryItem
 import com.example.cheapchomp.repository.OfflineDatabase
 import com.example.cheapchomp.ui.state.KrogerProductUiState
 
@@ -110,5 +112,54 @@ class KrogerProductViewModel(
             storeId = storeId,
             onSuccess = onSuccess
         )
+    }
+
+    // room database methods
+    fun displayCachedProducts() {
+        viewModelScope.launch {
+            databaseRepository.displayCachedProducts(room_db)
+                .onSuccess { products ->
+                    if (products.isEmpty()) {
+                        _uiState.value = KrogerProductUiState.Error("No cached products found")
+                    } else {
+                        _uiState.value = KrogerProductUiState.Success(products)
+                    }
+                }
+                .onFailure { exception ->
+                    // Handle the exception, e.g., log it or update the UI state with an error
+                    Log.e("displayCachedProducts", "Error fetching cached products", exception)
+                    _uiState.value = KrogerProductUiState.Error("Error fetching cached products")
+                }
+        }
+    }
+
+    fun clearCachedProducts() {
+        databaseRepository.clearCachedProducts(room_db)
+        _uiState.value = KrogerProductUiState.Initial
+    }
+
+    fun addToFavorites(product: ProductPrice) {
+        databaseRepository.getUserRef { userRef ->
+            val itemsDao = room_db.itemsDao()
+            var cachedItem = itemsDao.getItem(userRef.id, product.name)
+            if (cachedItem != null) {
+                cachedItem.favorited = true
+                itemsDao.insertItems(cachedItem)
+            } else {
+                val items = itemsDao.getAll(userRef.id)
+                cachedItem = CachedGroceryItem(
+                    id = items.size,
+                    item_id = "0",
+                    user_id = userRef.id,
+                    name = product.name,
+                    price = product.price,
+                    favorited = false,
+                    storeId = ""
+                )
+                itemsDao.insertItems(cachedItem)
+                Log.d("DATABASE", "Inserted item into room database: $cachedItem")
+            }
+        }
+
     }
 }

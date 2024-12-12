@@ -84,6 +84,9 @@ import com.google.firebase.firestore.firestore
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 import android.content.res.Configuration
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.ui.platform.LocalConfiguration
@@ -270,6 +273,21 @@ fun KrogerProductScreen(
                                 Text("Search")
                             }
                         }
+
+                    }
+                    // offline browsing/favorites
+                    Row (
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Button(
+                            onClick = { viewModel.displayCachedProducts() },
+                            enabled = uiState != KrogerProductUiState.Loading
+                        ) { Text("Browse Offline") }
+                        Button(
+                            onClick = { viewModel.clearCachedProducts() },
+                            enabled = uiState != KrogerProductUiState.Loading
+                        ) { Text("Clear Cache") }
                     }
 
                     when (uiState) {
@@ -364,6 +382,8 @@ fun KrogerProductItem(
     var existingQuantity by remember { mutableIntStateOf(0) }
     var showAddedMessage by remember { mutableStateOf(false) }
     var lastAddedQuantity by remember { mutableIntStateOf(0) }
+    var favoriteIcon by remember { mutableStateOf(Icons.Default.FavoriteBorder) }
+    var isFavorite by remember { mutableStateOf(false) }
 
     // Query Firestore to get initial quantity
     LaunchedEffect(product.name, nearestStoreId) {
@@ -498,6 +518,24 @@ fun KrogerProductItem(
                                 style = MaterialTheme.typography.titleLarge,
                                 color = Color(0xFF56AE57)
                             )
+
+                            Box(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .clickable { isFavorite = !isFavorite },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (isFavorite) {
+                                    favoriteIcon = Icons.Default.Favorite
+                                } else {
+                                    favoriteIcon = Icons.Default.FavoriteBorder
+                                }
+                                Icon(
+                                    imageVector = favoriteIcon,
+                                    contentDescription = "Favorite",
+                                    tint = Color(0xFF56AE57)
+                                )
+                            }
 
                             Button(
                                 onClick = {
