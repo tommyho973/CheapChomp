@@ -47,7 +47,7 @@ class MainActivity : ComponentActivity() {
 fun mainScreen(applicationContext: android.content.Context) {
     val navController = rememberNavController()
     val auth = FirebaseAuth.getInstance()
-    val room_db = Room.databaseBuilder(
+    val roomDB = Room.databaseBuilder(
         applicationContext,
         OfflineDatabase::class.java, "items_database"
     ).allowMainThreadQueries().fallbackToDestructiveMigration().build()
@@ -83,7 +83,7 @@ fun mainScreen(applicationContext: android.content.Context) {
         ) { backStackEntry ->
             val latitude = backStackEntry.arguments?.getString("latitude")?.toDoubleOrNull() ?: 37.7749
             val longitude = backStackEntry.arguments?.getString("longitude")?.toDoubleOrNull() ?: -122.4194
-            KrogerProductScreen(navController = navController, latitude = latitude, longitude = longitude, room_db = room_db)
+            KrogerProductScreen(navController = navController, latitude = latitude, longitude = longitude, roomDB = roomDB)
         }
     }
 }

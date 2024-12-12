@@ -358,7 +358,18 @@ class DatabaseRepository {
                 Log.d("DATABASE", "Inserted item into room database: $cachedItem")
             }
         }
+    }
 
+    fun removeFromFavorites(product: ProductPrice, room_db: OfflineDatabase) {
+        getUserRef { userRef ->
+            val itemsDao = room_db.itemsDao()
+            val cachedItem = itemsDao.getItem(userRef.id, product.name)
+            if (cachedItem != null) {
+                itemsDao.delete(cachedItem)
+                cachedItem.favorited = false
+                itemsDao.insertItems(cachedItem)
+            }
+        }
     }
 
 }

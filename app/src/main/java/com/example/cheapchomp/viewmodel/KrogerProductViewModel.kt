@@ -156,9 +156,22 @@ class KrogerProductViewModel(
         }
     }
 
+    suspend fun isFavoriteProduct(productName: String): Boolean {
+        val favoriteProducts = databaseRepository.displayFavoriteProducts(room_db).getOrDefault(emptyList())
+        return favoriteProducts.any { it.name == productName }
+    }
+
     fun addToFavorites(product: ProductPrice) {
         databaseRepository.addToFavorites(product, _nearestStoreId.value, room_db)
         Log.d("DATABASE", "Added to favorites: $product")
+        databaseRepository.getUserRef { userRef ->
+            Log.d("DATABASE", "Favorites: ${room_db.itemsDao().getFavoriteItems(userRef.id)}")
+        }
+    }
+
+    fun removeFromFavorites(product: ProductPrice) {
+        databaseRepository.removeFromFavorites(product, room_db)
+        Log.d("DATABASE", "Removed from favorites: $product")
         databaseRepository.getUserRef { userRef ->
             Log.d("DATABASE", "Favorites: ${room_db.itemsDao().getFavoriteItems(userRef.id)}")
         }

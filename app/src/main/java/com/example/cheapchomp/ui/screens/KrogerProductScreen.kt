@@ -99,10 +99,10 @@ fun KrogerProductScreen(
     navController: NavController,
     latitude: Double,
     longitude: Double,
-    room_db: OfflineDatabase
+    roomDB: OfflineDatabase
 ) {
     val viewModel: KrogerProductViewModel = viewModel(
-        factory = KrogerProductViewModelFactory(room_db)
+        factory = KrogerProductViewModelFactory(roomDB)
     )
     val uiState by viewModel.uiState.collectAsState()
     val nearestStoreId by viewModel.nearestStoreId.collectAsState()
@@ -212,9 +212,13 @@ fun KrogerProductScreen(
                                         onAddToDatabase = { quantity ->
                                             viewModel.addToDatabase(product, quantity)
                                         },
-                                        onAddToFavorites = { product ->
-                                            viewModel.addToFavorites(product)
-                                        }
+                                        onAddToFavorites = { prod ->
+                                            viewModel.addToFavorites(prod)
+                                        },
+                                        onRemoveFromFavorites = { prod ->
+                                            viewModel.removeFromFavorites(prod)
+                                        },
+                                        viewModel = viewModel
                                     )
                                 }
                             }
@@ -320,7 +324,11 @@ fun KrogerProductScreen(
                                         },
                                         onAddToFavorites = { prod ->
                                             viewModel.addToFavorites(prod)
-                                        }
+                                        },
+                                        onRemoveFromFavorites = { prod ->
+                                            viewModel.removeFromFavorites(prod)
+                                        },
+                                        viewModel = viewModel
                                     )
                                 }
                             }
@@ -382,7 +390,9 @@ fun KrogerProductItem(
     product: ProductPrice,
     nearestStoreId: String,
     onAddToDatabase: (quantity: Int) -> Unit,
-    onAddToFavorites: (product: ProductPrice) -> Unit
+    onAddToFavorites: (product: ProductPrice) -> Unit,
+    onRemoveFromFavorites: (product: ProductPrice) -> Unit,
+    viewModel: KrogerProductViewModel
 ) {
     var offset by remember { mutableFloatStateOf(0f) }
     var isDragging by remember { mutableStateOf(false) }
@@ -395,6 +405,7 @@ fun KrogerProductItem(
     var lastAddedQuantity by remember { mutableIntStateOf(0) }
     var favoriteIcon by remember { mutableStateOf(Icons.Default.FavoriteBorder) }
     var isFavorite by remember { mutableStateOf(false) }
+
 
     // Query Firestore to get initial quantity
     LaunchedEffect(product.name, nearestStoreId) {
@@ -416,6 +427,15 @@ fun KrogerProductItem(
         }
     }
 
+    LaunchedEffect(key1 = product.name) { // Launch effect when product.name changes
+        isFavorite = viewModel.isFavoriteProduct(product.name)
+        favoriteIcon = if (isFavorite) {
+            Icons.Default.Favorite
+        } else {
+            Icons.Default.FavoriteBorder
+        }
+    }
+
     // Hide the message after delay
     LaunchedEffect(showAddedMessage) {
         if (showAddedMessage) {
@@ -431,8 +451,11 @@ fun KrogerProductItem(
         onAddToDatabase(quantity)
     }
 
-    val handleAddToFavorites = { product: ProductPrice ->
-        onAddToFavorites(product)
+    val handleAddToFavorites = { prod: ProductPrice ->
+        onAddToFavorites(prod)
+    }
+    val handleRemoveFromFavorites = { prod: ProductPrice ->
+        onRemoveFromFavorites(prod)
     }
 
     // Animate the offset with a spring-like animation for smooth sling-back
@@ -541,14 +564,16 @@ fun KrogerProductItem(
                                         isFavorite = !isFavorite
                                         if (isFavorite) {
                                             handleAddToFavorites(product)
+                                        } else {
+                                            handleRemoveFromFavorites(product)
                                         }
                                                },
                                 contentAlignment = Alignment.Center
                             ) {
-                                if (isFavorite) {
-                                    favoriteIcon = Icons.Default.Favorite
+                                favoriteIcon = if (isFavorite) {
+                                    Icons.Default.Favorite
                                 } else {
-                                    favoriteIcon = Icons.Default.FavoriteBorder
+                                    Icons.Default.FavoriteBorder
                                 }
                                 Icon(
                                     imageVector = favoriteIcon,
