@@ -3,12 +3,47 @@ package com.example.cheapchomp.repository
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
+import androidx.room.Dao
+import androidx.room.Database
+import androidx.room.Delete
+import androidx.room.Entity
+import androidx.room.Insert
+import androidx.room.PrimaryKey
+import androidx.room.Query
+import androidx.room.Room
+import androidx.room.RoomDatabase
 import com.example.cheapchomp.network.models.ProductPrice
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.firestore
 import java.time.Instant
+
+// offline database
+@Entity(tableName = "item")
+data class CachedGroceryItem(
+    @PrimaryKey val id: Int,
+    val name: String,
+    val price: String,
+    val storeId: String
+)
+
+@Dao
+interface ItemsDao {
+    @Query("SELECT * FROM item")
+    fun getAll(): List<CachedGroceryItem>
+
+    @Insert
+    fun insertItems(vararg items: CachedGroceryItem)
+
+    @Delete
+    fun delete(item: CachedGroceryItem)
+}
+
+@Database(entities = [CachedGroceryItem::class], version = 1)
+abstract class OfflineDatabase : RoomDatabase() {
+    abstract fun itemsDao(): ItemsDao
+}
 
 class DatabaseRepository {
     private val db = Firebase.firestore
@@ -19,8 +54,12 @@ class DatabaseRepository {
         storeId: String,
         quantity: Int,
         onSuccess: () -> Unit = {},
-        onError: (Exception) -> Unit = {}
+        onError: (Exception) -> Unit = {},
+        room_db: OfflineDatabase
     ) {
+        // initialize dao for offline database
+        val itemsDao = room_db.itemsDao()
+
         getGroceryList { listRef ->
             Log.d("DATABASE", "Adding quantity: $quantity")
 
@@ -66,6 +105,15 @@ class DatabaseRepository {
                                 Log.w("DATABASE", "Error adding document", e)
                                 onError(e)
                             }
+                        val cachedItem = CachedGroceryItem(
+                            id = itemsDao.getAll().size,
+                            name = product.name,
+                            price = product.price,
+                            storeId = storeId
+                        )
+                        itemsDao.insertItems(cachedItem)
+                        val roomItems = itemsDao.getAll()
+                        Log.d("DATABASE", "Room items: $roomItems")
                     }
                 }
                 .addOnFailureListener { e ->
@@ -193,6 +241,7 @@ class DatabaseRepository {
         val quantity: Int,
         val storeId: String
     )
+
 }
 
 

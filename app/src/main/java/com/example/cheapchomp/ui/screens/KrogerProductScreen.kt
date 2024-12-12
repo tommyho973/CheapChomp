@@ -87,6 +87,7 @@ import android.content.res.Configuration
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.ui.platform.LocalConfiguration
+import com.example.cheapchomp.repository.OfflineDatabase
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -94,10 +95,11 @@ fun KrogerProductScreen(
     modifier: Modifier = Modifier,
     navController: NavController,
     latitude: Double,
-    longitude: Double
+    longitude: Double,
+    room_db: OfflineDatabase
 ) {
     val viewModel: KrogerProductViewModel = viewModel(
-        factory = KrogerProductViewModelFactory()
+        factory = KrogerProductViewModelFactory(room_db)
     )
     val uiState by viewModel.uiState.collectAsState()
     val nearestStoreId by viewModel.nearestStoreId.collectAsState()

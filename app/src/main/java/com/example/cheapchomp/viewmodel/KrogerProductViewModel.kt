@@ -11,11 +11,13 @@ import kotlinx.coroutines.launch
 import com.example.cheapchomp.repository.KrogerRepository
 import com.example.cheapchomp.repository.DatabaseRepository
 import com.example.cheapchomp.network.models.ProductPrice
+import com.example.cheapchomp.repository.OfflineDatabase
 import com.example.cheapchomp.ui.state.KrogerProductUiState
 
 class KrogerProductViewModel(
     private val krogerRepository: KrogerRepository,
-    private val databaseRepository: DatabaseRepository
+    private val databaseRepository: DatabaseRepository,
+    private val room_db: OfflineDatabase
 ) : ViewModel() {
     private val _uiState = MutableStateFlow<KrogerProductUiState>(KrogerProductUiState.Initial)
     val uiState: StateFlow<KrogerProductUiState> = _uiState.asStateFlow()
@@ -97,7 +99,8 @@ class KrogerProductViewModel(
         databaseRepository.addToDatabase(
             product = product,
             storeId = _nearestStoreId.value,
-            quantity = quantity
+            quantity = quantity,
+            room_db = room_db
         )
     }
 

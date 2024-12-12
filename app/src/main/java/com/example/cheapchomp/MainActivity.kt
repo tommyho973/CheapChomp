@@ -14,6 +14,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.room.Room
+import com.example.cheapchomp.repository.OfflineDatabase
 import com.example.cheapchomp.ui.screens.GoogleMapScreen
 import com.example.cheapchomp.ui.screens.GroceryListScreen
 import com.example.cheapchomp.ui.screens.KrogerProductScreen
@@ -33,7 +35,7 @@ class MainActivity : ComponentActivity() {
             CheapChompTheme {
                 Surface(color = Color(0xFF98FB98)) {
                     //GoogleMapScreen()
-                    mainScreen()
+                    mainScreen(applicationContext)
                 }
             }
         }
@@ -42,9 +44,14 @@ class MainActivity : ComponentActivity() {
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun mainScreen() {
+fun mainScreen(applicationContext: android.content.Context) {
     val navController = rememberNavController()
     val auth = FirebaseAuth.getInstance()
+    val room_db = Room.databaseBuilder(
+        applicationContext,
+        OfflineDatabase::class.java, "items_database"
+    ).allowMainThreadQueries().build()
+
 
     NavHost(navController = navController, startDestination = "LoginScreen") {
         composable("LoginScreen") {
@@ -76,7 +83,7 @@ fun mainScreen() {
         ) { backStackEntry ->
             val latitude = backStackEntry.arguments?.getString("latitude")?.toDoubleOrNull() ?: 37.7749
             val longitude = backStackEntry.arguments?.getString("longitude")?.toDoubleOrNull() ?: -122.4194
-            KrogerProductScreen(navController = navController, latitude = latitude, longitude = longitude)
+            KrogerProductScreen(navController = navController, latitude = latitude, longitude = longitude, room_db = room_db)
         }
     }
 }
