@@ -211,6 +211,9 @@ fun KrogerProductScreen(
                                         nearestStoreId = nearestStoreId,
                                         onAddToDatabase = { quantity ->
                                             viewModel.addToDatabase(product, quantity)
+                                        },
+                                        onAddToFavorites = { product ->
+                                            viewModel.addToFavorites(product)
                                         }
                                     )
                                 }
@@ -288,6 +291,10 @@ fun KrogerProductScreen(
                             onClick = { viewModel.clearCachedProducts() },
                             enabled = uiState != KrogerProductUiState.Loading
                         ) { Text("Clear Cache") }
+                        Button(
+                            onClick = { viewModel.displayFavoriteProducts() },
+                            enabled = uiState != KrogerProductUiState.Loading
+                        ) { Text("Favorites") }
                     }
 
                     when (uiState) {
@@ -310,6 +317,9 @@ fun KrogerProductScreen(
                                         nearestStoreId = nearestStoreId,
                                         onAddToDatabase = { quantity ->
                                             viewModel.addToDatabase(product, quantity)
+                                        },
+                                        onAddToFavorites = { prod ->
+                                            viewModel.addToFavorites(prod)
                                         }
                                     )
                                 }
@@ -371,7 +381,8 @@ fun ProductImage(
 fun KrogerProductItem(
     product: ProductPrice,
     nearestStoreId: String,
-    onAddToDatabase: (quantity: Int) -> Unit
+    onAddToDatabase: (quantity: Int) -> Unit,
+    onAddToFavorites: (product: ProductPrice) -> Unit
 ) {
     var offset by remember { mutableFloatStateOf(0f) }
     var isDragging by remember { mutableStateOf(false) }
@@ -418,6 +429,10 @@ fun KrogerProductItem(
         lastAddedQuantity = quantity
         showAddedMessage = true
         onAddToDatabase(quantity)
+    }
+
+    val handleAddToFavorites = { product: ProductPrice ->
+        onAddToFavorites(product)
     }
 
     // Animate the offset with a spring-like animation for smooth sling-back
@@ -522,7 +537,12 @@ fun KrogerProductItem(
                             Box(
                                 modifier = Modifier
                                     .size(24.dp)
-                                    .clickable { isFavorite = !isFavorite },
+                                    .clickable {
+                                        isFavorite = !isFavorite
+                                        if (isFavorite) {
+                                            handleAddToFavorites(product)
+                                        }
+                                               },
                                 contentAlignment = Alignment.Center
                             ) {
                                 if (isFavorite) {

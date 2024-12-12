@@ -47,6 +47,9 @@ interface ItemsDao {
     @Query("SELECT * FROM item WHERE user_id = :userId AND name = :name")
     fun getItem(userId: String, name: String): CachedGroceryItem?
 
+    @Query("SELECT * FROM item WHERE user_id = :userId AND favorited = 1")
+    fun getFavoriteItems(userId: String): List<CachedGroceryItem>
+
     @Query("SELECT * FROM item WHERE user_id = :userId AND favorited = 0")
     fun getNonFavoriteItems(userId: String): List<CachedGroceryItem>
 
@@ -309,11 +312,35 @@ class DatabaseRepository {
         }
     }
 
+    suspend fun displayFavoriteProducts(room_db: OfflineDatabase): Result<List<ProductPrice>> {
+        return suspendCoroutine { continuation ->
+            val emptyProductList: List<ProductPrice> = emptyList()
+            var toReturn = Result.success(emptyProductList)
+            getUserRef { userRef ->
+                val itemsDao = room_db.itemsDao()
+                val roomItems = itemsDao.getFavoriteItems(userRef.id)
+                if (roomItems.isNotEmpty()) {
+                    val products = roomItems.map { item ->
+                        ProductPrice(
+                            name = item.name,
+                            price = item.price,
+                            imageUrl = ""
+                        )
+                    }
+                    Log.d("DATABASE", "Displaying favorited products: $products")
+                    toReturn = Result.success(products)
+                }
+                continuation.resume(toReturn)
+            }
+        }
+    }
+
     fun addToFavorites(product: ProductPrice, storeId: String, room_db: OfflineDatabase) {
         getUserRef { userRef ->
             val itemsDao = room_db.itemsDao()
             var cachedItem = itemsDao.getItem(userRef.id, product.name)
             if (cachedItem != null) {
+                itemsDao.delete(cachedItem)
                 cachedItem.favorited = true
                 itemsDao.insertItems(cachedItem)
             } else {
@@ -324,7 +351,7 @@ class DatabaseRepository {
                     user_id = userRef.id,
                     name = product.name,
                     price = product.price,
-                    favorited = false,
+                    favorited = true,
                     storeId = storeId
                 )
                 itemsDao.insertItems(cachedItem)

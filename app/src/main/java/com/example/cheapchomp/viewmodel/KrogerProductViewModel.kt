@@ -138,28 +138,29 @@ class KrogerProductViewModel(
         _uiState.value = KrogerProductUiState.Initial
     }
 
-    fun addToFavorites(product: ProductPrice) {
-        databaseRepository.getUserRef { userRef ->
-            val itemsDao = room_db.itemsDao()
-            var cachedItem = itemsDao.getItem(userRef.id, product.name)
-            if (cachedItem != null) {
-                cachedItem.favorited = true
-                itemsDao.insertItems(cachedItem)
-            } else {
-                val items = itemsDao.getAll(userRef.id)
-                cachedItem = CachedGroceryItem(
-                    id = items.size,
-                    item_id = "0",
-                    user_id = userRef.id,
-                    name = product.name,
-                    price = product.price,
-                    favorited = false,
-                    storeId = ""
-                )
-                itemsDao.insertItems(cachedItem)
-                Log.d("DATABASE", "Inserted item into room database: $cachedItem")
-            }
+    fun displayFavoriteProducts() {
+        viewModelScope.launch {
+            databaseRepository.displayFavoriteProducts(room_db)
+                .onSuccess { products ->
+                    if (products.isEmpty()) {
+                        _uiState.value = KrogerProductUiState.Error("No favorited products found")
+                    } else {
+                        _uiState.value = KrogerProductUiState.Success(products)
+                    }
+                }
+                .onFailure { exception ->
+                    // Handle the exception, e.g., log it or update the UI state with an error
+                    Log.e("displayFavoriteProducts", "Error fetching favorited products", exception)
+                    _uiState.value = KrogerProductUiState.Error("Error fetching favorited products")
+                }
         }
+    }
 
+    fun addToFavorites(product: ProductPrice) {
+        databaseRepository.addToFavorites(product, _nearestStoreId.value, room_db)
+        Log.d("DATABASE", "Added to favorites: $product")
+        databaseRepository.getUserRef { userRef ->
+            Log.d("DATABASE", "Favorites: ${room_db.itemsDao().getFavoriteItems(userRef.id)}")
+        }
     }
 }
