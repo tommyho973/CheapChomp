@@ -52,6 +52,7 @@ import com.example.cheapchomp.ui.state.LoginUiState
 import com.example.cheapchomp.viewmodel.LoginViewModel
 import com.example.cheapchomp.viewmodel.LoginViewModelFactory
 import com.example.cheapchomp.viewmodel.RegistrationViewModel
+import com.example.cheapchomp.viewmodel.RegistrationViewModelFactory
 import com.google.android.gms.auth.api.identity.SignInClient
 import com.google.android.gms.auth.api.identity.BeginSignInRequest
 import com.google.firebase.auth.FirebaseAuth
@@ -68,6 +69,9 @@ fun LoginScreen(
     ) {
     val viewModel: LoginViewModel = viewModel(
         factory = LoginViewModelFactory(auth, LocalContext.current)
+    )
+    val registrationViewModel: RegistrationViewModel = viewModel(
+        factory = RegistrationViewModelFactory(auth)
     )
     val uiState by viewModel.uiState.collectAsState()
     val isLoggedIn by viewModel.isLoggedIn.collectAsState()
@@ -216,18 +220,8 @@ fun LoginScreen(
                             signInRequest = signInRequest,
                             onSuccess = { intentSender ->
                                 onGoogleSignInLauncher(intentSender)
-                                val user = FirebaseAuth.getInstance().currentUser
-                                if (user != null) {
-                                    val isNewUser = true // FIX THIS fix it fix it fix it
-                                    if (isNewUser) {
-                                        user.email?.let {
-                                            RegistrationViewModel(auth).registerGoogle(
-                                                it
-                                            )
-                                        }
-                                    }
-
-                                }
+                                Log.d("GoogleSignIn", "Google sign-in started")
+                                registrationViewModel.initializeDatabase()
                             },
                             onFailure = { exception ->
                                 Log.e("GoogleSignIn", "Error initializing sign-in", exception)

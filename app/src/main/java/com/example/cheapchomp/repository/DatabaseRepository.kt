@@ -104,6 +104,7 @@ class DatabaseRepository {
                                 Log.w("DATABASE", "Error updating document", e)
                                 onError(e)
                             }
+                        addToOfflineDatabase(product, room_db, storeId)
                     } else {
                         val item = hashMapOf(
                             "store_id" to storeId,
@@ -126,33 +127,7 @@ class DatabaseRepository {
                                 Log.w("DATABASE", "Error adding document", e)
                                 onError(e)
                             }
-                        getUserRef { userRef ->
-                            var cached = false
-                            val items = itemsDao.getAll(userRef.id)
-                            for (i in items) {
-                                if (i.name == product.name) { // should change this to be by unique id
-                                    cached = true
-                                    break
-                                }
-                            }
-
-                            if (!cached) {
-                                val cachedItem = CachedGroceryItem(
-                                    id = items.size,
-                                    item_id = "0",
-                                    user_id = userRef.id,
-                                    name = product.name,
-                                    price = product.price,
-                                    favorited = false,
-                                    storeId = storeId
-                                )
-                                itemsDao.insertItems(cachedItem)
-                                Log.d("DATABASE", "Inserted item into room database: $cachedItem")
-
-                            }
-
-                        }
-
+                        addToOfflineDatabase(product, room_db, storeId)
                     }
                 }
                 .addOnFailureListener { e ->
@@ -369,6 +344,36 @@ class DatabaseRepository {
                 cachedItem.favorited = false
                 itemsDao.insertItems(cachedItem)
             }
+        }
+    }
+
+    fun addToOfflineDatabase(product: ProductPrice, room_db: OfflineDatabase, storeId: String) {
+        getUserRef { userRef ->
+            val itemsDao = room_db.itemsDao()
+            var cached = false
+            val items = itemsDao.getAll(userRef.id)
+            for (i in items) {
+                if (i.name == product.name) { // should change this to be by unique id
+                    cached = true
+                    break
+                }
+            }
+
+            if (!cached) {
+                val cachedItem = CachedGroceryItem(
+                    id = items.size,
+                    item_id = "0",
+                    user_id = userRef.id,
+                    name = product.name,
+                    price = product.price,
+                    favorited = false,
+                    storeId = storeId
+                )
+                itemsDao.insertItems(cachedItem)
+                Log.d("DATABASE", "Inserted item into room database: $cachedItem")
+
+            }
+
         }
     }
 

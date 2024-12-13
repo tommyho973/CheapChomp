@@ -1,9 +1,11 @@
 package com.example.cheapchomp.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import com.example.cheapchomp.repository.DatabaseRepository
 import com.example.cheapchomp.ui.state.RegistrationUiState
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
@@ -38,9 +40,30 @@ class RegistrationViewModel(
             }
     }
 
-    fun registerGoogle(email: String) {
-        createUserDocument(email)
+    // for initializing user & grocery list documents of a new google user specifically
+    fun initializeDatabase() {
+        val user = FirebaseAuth.getInstance().currentUser
+        Log.d("RegistrationViewModel", "User: $user")
+        if (user != null) {
+            val email = user.email
+
+            db.collection("users")
+                .whereEqualTo("email", email)
+                .get()
+                .addOnSuccessListener { documents ->
+                    if (documents.isEmpty) {
+                        // user not found, create a new user document
+                        if (email != null) {
+                            createUserDocument(email)
+                        }
+
+
+                    }
+                }
+
+        }
     }
+
 
     private fun createUserDocument(email: String) {
         val user = hashMapOf("email" to email)

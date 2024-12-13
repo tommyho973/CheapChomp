@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.IntentSender
 import android.util.Log
 import androidx.lifecycle.ViewModel
+import com.example.cheapchomp.repository.DatabaseRepository
 import com.example.cheapchomp.ui.state.LoginUiState
 import com.google.android.gms.auth.api.identity.BeginSignInRequest
 import com.google.android.gms.auth.api.identity.SignInClient
@@ -16,7 +17,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 class LoginViewModel(
-    private val auth: FirebaseAuth
+    private val auth: FirebaseAuth,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow<LoginUiState>(LoginUiState.Initial)
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
@@ -40,13 +41,6 @@ class LoginViewModel(
 
 
     // google oauth
-    sealed class LoginState {
-        object Idle : LoginState() // Initial state
-        object Loading : LoginState() // When a sign-in attempt is in progress
-        data class Success(val email: String?) : LoginState() // On successful sign-in
-        data class Error(val message: String) : LoginState() // On sign-in failure
-    }
-
     fun startGoogleSignIn(
         oneTapClient: SignInClient,
         signInRequest: BeginSignInRequest,
@@ -79,7 +73,7 @@ class LoginViewModel(
 
     private fun firebaseAuthWithGoogle(idToken: String) {
         val credential = GoogleAuthProvider.getCredential(idToken, null)
-        FirebaseAuth.getInstance().signInWithCredential(credential)
+        auth.signInWithCredential(credential)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
                     _uiState.value = LoginUiState.Success("Login successful :)")
