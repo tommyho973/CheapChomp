@@ -38,6 +38,10 @@ class RegistrationViewModel(
             }
     }
 
+    fun registerGoogle(email: String) {
+        createUserDocument(email)
+    }
+
     private fun createUserDocument(email: String) {
         val user = hashMapOf("email" to email)
 

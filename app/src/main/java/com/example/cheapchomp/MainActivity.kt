@@ -44,9 +44,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // ok so idk where to put this but it is refusing to go anywhere else i try
         FirebaseApp.initializeApp(this)
-        Log.d("DEBUGGING", "0")
+
+        // ok so idk where to put this but it is refusing to go anywhere else i try
+        // google oauth initialization
         viewModel = ViewModelProvider(
             this,
             LoginViewModelFactory(FirebaseAuth.getInstance(), this)

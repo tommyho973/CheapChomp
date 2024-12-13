@@ -51,6 +51,7 @@ import com.example.cheapchomp.R
 import com.example.cheapchomp.ui.state.LoginUiState
 import com.example.cheapchomp.viewmodel.LoginViewModel
 import com.example.cheapchomp.viewmodel.LoginViewModelFactory
+import com.example.cheapchomp.viewmodel.RegistrationViewModel
 import com.google.android.gms.auth.api.identity.SignInClient
 import com.google.android.gms.auth.api.identity.BeginSignInRequest
 import com.google.firebase.auth.FirebaseAuth
@@ -215,6 +216,18 @@ fun LoginScreen(
                             signInRequest = signInRequest,
                             onSuccess = { intentSender ->
                                 onGoogleSignInLauncher(intentSender)
+                                val user = FirebaseAuth.getInstance().currentUser
+                                if (user != null) {
+                                    val isNewUser = true // FIX THIS fix it fix it fix it
+                                    if (isNewUser) {
+                                        user.email?.let {
+                                            RegistrationViewModel(auth).registerGoogle(
+                                                it
+                                            )
+                                        }
+                                    }
+
+                                }
                             },
                             onFailure = { exception ->
                                 Log.e("GoogleSignIn", "Error initializing sign-in", exception)

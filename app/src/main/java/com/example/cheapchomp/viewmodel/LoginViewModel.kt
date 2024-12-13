@@ -3,6 +3,7 @@ package com.example.cheapchomp.viewmodel
 
 import android.content.Intent
 import android.content.IntentSender
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import com.example.cheapchomp.ui.state.LoginUiState
 import com.google.android.gms.auth.api.identity.BeginSignInRequest
@@ -46,10 +47,6 @@ class LoginViewModel(
         data class Error(val message: String) : LoginState() // On sign-in failure
     }
 
-
-    private val _loginState = MutableStateFlow<LoginState>(LoginState.Idle)
-    val loginState: StateFlow<LoginState> = _loginState.asStateFlow()
-
     fun startGoogleSignIn(
         oneTapClient: SignInClient,
         signInRequest: BeginSignInRequest,
@@ -73,10 +70,10 @@ class LoginViewModel(
             if (idToken != null) {
                 firebaseAuthWithGoogle(idToken)
             } else {
-                _loginState.value = LoginState.Error("No ID token found")
+                _uiState.value = LoginUiState.Error("No ID token found")
             }
         } catch (e: ApiException) {
-            _loginState.value = LoginState.Error("Error retrieving sign-in credential")
+            _uiState.value = LoginUiState.Error("Error retrieving sign-in credential")
         }
     }
 
@@ -85,10 +82,10 @@ class LoginViewModel(
         FirebaseAuth.getInstance().signInWithCredential(credential)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
-                    val user = FirebaseAuth.getInstance().currentUser
-                    _loginState.value = LoginState.Success(user?.email)
+                    _uiState.value = LoginUiState.Success("Login successful :)")
+                    _isLoggedIn.value = true
                 } else {
-                    _loginState.value = LoginState.Error("Firebase sign-in failed")
+                    _uiState.value = LoginUiState.Error("Firebase sign-in failed")
                 }
             }
     }
