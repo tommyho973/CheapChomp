@@ -1,14 +1,21 @@
 package com.example.cheapchomp
 
+import android.content.Context
+import android.content.IntentSender
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -22,20 +29,64 @@ import com.example.cheapchomp.ui.screens.KrogerProductScreen
 import com.example.cheapchomp.ui.screens.LoginScreen
 import com.example.cheapchomp.ui.screens.RegistrationScreen
 import com.example.cheapchomp.ui.theme.CheapChompTheme
+import com.example.cheapchomp.viewmodel.LoginViewModel
+import com.example.cheapchomp.viewmodel.LoginViewModelFactory
+import com.google.android.gms.auth.api.identity.BeginSignInRequest
+import com.google.android.gms.auth.api.identity.Identity
+import com.google.android.gms.auth.api.identity.SignInClient
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 
 class MainActivity : ComponentActivity() {
     @RequiresApi(Build.VERSION_CODES.O)
+    private lateinit var viewModel: LoginViewModel
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // ok so idk where to put this but it is refusing to go anywhere else i try
         FirebaseApp.initializeApp(this)
+        Log.d("DEBUGGING", "0")
+        viewModel = ViewModelProvider(
+            this,
+            LoginViewModelFactory(FirebaseAuth.getInstance(), this)
+        ).get(LoginViewModel::class.java)
+
+        lateinit var oneTapClient: SignInClient
+        lateinit var signInRequest: BeginSignInRequest
+
+        fun initializeSignInClient(context: Context) {
+            oneTapClient = Identity.getSignInClient(context)
+
+            signInRequest = BeginSignInRequest.builder()
+                .setGoogleIdTokenRequestOptions(
+                    BeginSignInRequest.GoogleIdTokenRequestOptions.builder()
+                        .setSupported(true)
+                        .setServerClientId(context.getString(R.string.default_web_client_id))
+                        .setFilterByAuthorizedAccounts(false)
+                        .build()
+                )
+                .build()
+        }
+        initializeSignInClient(this)
+
+        val googleSignInLauncher: ActivityResultLauncher<IntentSenderRequest> =
+            registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+                if (result.resultCode == RESULT_OK) {
+                    viewModel.handleSignInResult(oneTapClient, result.data)
+                } else {
+                    Log.e("GoogleSignIn", "Sign-in canceled or failed")
+                }
+            }
+
         setContent {
             CheapChompTheme {
                 Surface(color = Color(0xFF98FB98)) {
                     //GoogleMapScreen()
-                    mainScreen(applicationContext)
+                    mainScreen(applicationContext, onGoogleSignInLauncher = { intentSender ->
+                        val intentSenderRequest = IntentSenderRequest.Builder(intentSender).build()
+                        googleSignInLauncher.launch(intentSenderRequest)
+                    }, signInRequest = signInRequest, oneTapClient = oneTapClient)
                 }
             }
         }
@@ -44,7 +95,7 @@ class MainActivity : ComponentActivity() {
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun mainScreen(applicationContext: android.content.Context) {
+fun mainScreen(applicationContext: Context, onGoogleSignInLauncher: (IntentSender) -> Unit, signInRequest: BeginSignInRequest, oneTapClient: SignInClient) {
     val navController = rememberNavController()
     val auth = FirebaseAuth.getInstance()
     val roomDB = Room.databaseBuilder(
@@ -55,7 +106,7 @@ fun mainScreen(applicationContext: android.content.Context) {
 
     NavHost(navController = navController, startDestination = "LoginScreen") {
         composable("LoginScreen") {
-            LoginScreen(navController = navController, auth = auth)
+            LoginScreen(navController = navController, auth = auth, onGoogleSignInLauncher = onGoogleSignInLauncher, oneTapClient = oneTapClient, signInRequest = signInRequest)
         }
         composable("RegistrationScreen") {
             RegistrationScreen(navController = navController, auth = auth)

@@ -1,6 +1,8 @@
 package com.example.cheapchomp.ui.screens
 
+import android.content.IntentSender
 import android.content.res.Configuration
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -49,16 +51,22 @@ import com.example.cheapchomp.R
 import com.example.cheapchomp.ui.state.LoginUiState
 import com.example.cheapchomp.viewmodel.LoginViewModel
 import com.example.cheapchomp.viewmodel.LoginViewModelFactory
+import com.google.android.gms.auth.api.identity.SignInClient
+import com.google.android.gms.auth.api.identity.BeginSignInRequest
 import com.google.firebase.auth.FirebaseAuth
 
 @Composable
 fun LoginScreen(
     modifier: Modifier = Modifier,
     navController: NavController,
-    auth: FirebaseAuth
-) {
+    auth: FirebaseAuth,
+    onGoogleSignInLauncher: (IntentSender) -> Unit,
+    oneTapClient: SignInClient,
+    signInRequest: BeginSignInRequest
+
+    ) {
     val viewModel: LoginViewModel = viewModel(
-        factory = LoginViewModelFactory(auth)
+        factory = LoginViewModelFactory(auth, LocalContext.current)
     )
     val uiState by viewModel.uiState.collectAsState()
     val isLoggedIn by viewModel.isLoggedIn.collectAsState()
@@ -131,7 +139,7 @@ fun LoginScreen(
                         .border(1.dp, Color(0xFF56AE57), RoundedCornerShape(50)) // Border first
                         .clip(RoundedCornerShape(50)) // Clip to the border shape
                         .background(Color.White)
-                        .clickable { /*Do something later*/ }
+                        .clickable { }
                 )
                 Text(message, modifier = Modifier.widthIn(max = 250.dp)) // display success or fail
             }
@@ -201,7 +209,18 @@ fun LoginScreen(
                     .border(1.dp, Color(0xFF56AE57), RoundedCornerShape(50)) // Border first
                     .clip(RoundedCornerShape(50)) // Clip to the border shape
                     .background(Color.White)
-                    .clickable { /*Do something later*/ }
+                    .clickable {
+                        viewModel.startGoogleSignIn(
+                            oneTapClient = oneTapClient,
+                            signInRequest = signInRequest,
+                            onSuccess = { intentSender ->
+                                onGoogleSignInLauncher(intentSender)
+                            },
+                            onFailure = { exception ->
+                                Log.e("GoogleSignIn", "Error initializing sign-in", exception)
+                            }
+                        )
+                    }
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(message, modifier = Modifier.widthIn(max = 250.dp)) // display success or fail

@@ -5,7 +5,8 @@ import androidx.lifecycle.ViewModelProvider
 import com.google.firebase.auth.FirebaseAuth
 
 class LoginViewModelFactory(
-    private val auth: FirebaseAuth
+    private val auth: FirebaseAuth,
+    private val context: android.content.Context
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(LoginViewModel::class.java)) {
