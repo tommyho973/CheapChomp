@@ -84,5 +84,9 @@ class LoginViewModel(
             }
     }
 
+    fun setLoggedIn(value: Boolean) {
+        _isLoggedIn.value = value
+    }
+
 
 }

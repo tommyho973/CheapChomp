@@ -85,6 +85,14 @@ fun LoginScreen(
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
+    LaunchedEffect(Unit) {
+        auth.addAuthStateListener { firebaseAuth ->
+            Log.d("OAuth_Flow", "Auth state changed. Current user: ${firebaseAuth.currentUser?.email}")
+            if (firebaseAuth.currentUser != null) {
+                viewModel.setLoggedIn(true)
+            }
+        }
+    }
     if(isLandscape){
         Row(){
             Column(modifier = Modifier
