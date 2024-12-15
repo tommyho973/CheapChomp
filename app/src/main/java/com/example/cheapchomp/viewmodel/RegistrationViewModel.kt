@@ -72,6 +72,7 @@ class RegistrationViewModel(
             .add(user)
             .addOnSuccessListener {
                 createGroceryList()
+                createExpenses()
             }
             .addOnFailureListener { e ->
                 _uiState.value = RegistrationUiState.Error("Error creating user document: ${e.message}")
@@ -92,6 +93,35 @@ class RegistrationViewModel(
                 }
                 .addOnFailureListener { e ->
                     _uiState.value = RegistrationUiState.Error("Error creating grocery list: ${e.message}")
+                }
+        }
+    }
+
+    private fun createExpenses() {
+        databaseRepository.getUserRef { userRef ->
+            val expenses = hashMapOf(
+                "user" to userRef,
+                "1" to 0,
+                "2" to 0,
+                "3" to 0,
+                "4" to 0,
+                "5" to 0,
+                "6" to 0,
+                "7" to 0,
+                "8" to 0,
+                "9" to 0,
+                "10" to 0,
+                "11" to 0,
+                "12" to 0
+            )
+
+            db.collection("expenses")
+                .add(expenses)
+                .addOnSuccessListener {
+                    _uiState.value = RegistrationUiState.Success("Account created successfully!")
+                }
+                .addOnFailureListener { e ->
+                    _uiState.value = RegistrationUiState.Error("Error creating expenses: ${e.message}")
                 }
         }
     }

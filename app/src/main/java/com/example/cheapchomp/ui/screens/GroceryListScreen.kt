@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.BottomNavigation
 import androidx.compose.material.BottomNavigationItem
+import androidx.compose.material.Checkbox
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.DropdownMenu
 import androidx.compose.material.DropdownMenuItem
@@ -254,6 +255,7 @@ fun GroceryListItem(
     var showQuantityDialog by remember { mutableStateOf(false) }
     var removeQuantity by remember { mutableStateOf("1") }
     val swipeThreshold = -150f
+    var isChecked by remember { mutableStateOf(false) }
 
     // Helper function for showing snackbar
     fun showUndoSnackbar(message: String) {
@@ -387,6 +389,12 @@ fun GroceryListItem(
                 Column(
                     modifier = Modifier.weight(1f)
                 ) {
+                    Checkbox(
+                        checked = isChecked,
+                        onCheckedChange = { isChecked = it
+                            viewModel.checkItem(item)
+                        }
+                    )
                     Text(
                         text = item.name,
                         style = MaterialTheme.typography.bodyLarge

@@ -21,7 +21,9 @@ import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.firestore
+import com.google.type.TimeZone
 import java.time.Instant
+import java.util.Calendar
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -519,6 +521,39 @@ class DatabaseRepository() {
                 cachedItem.pendingSync = true
                 itemsDao.insertItems(cachedItem)
             }
+        }
+    }
+
+    fun addToExpenses(price: Float) {
+        getUserRef { userRef ->
+            val timestamp = System.currentTimeMillis()
+            val calendar = Calendar.getInstance()
+            calendar.timeInMillis = timestamp
+            val month = calendar.get(Calendar.MONTH) + 1
+
+            db.collection("expenses")
+                .whereEqualTo("user", userRef)
+                .get()
+                .addOnSuccessListener { querySnapshot ->
+                    if (!querySnapshot.isEmpty) {
+                        val doc = querySnapshot.documents[0]
+                        val currentExpenses = doc.getLong(month.toString())?.toInt() ?: 0
+                        val newExpenses = currentExpenses + price
+
+                        doc.reference.update(month.toString(), newExpenses)
+                            .addOnSuccessListener {
+                                Log.d("DATABASE", "Updated quantity: $newExpenses")
+                            }
+                            .addOnFailureListener { e ->
+                                Log.w("DATABASE", "Error updating document", e)
+                            }
+                    } else {
+                        Log.d("Firestore", "No expenses reference found")
+                    }
+                }
+                .addOnFailureListener { e ->
+                    Log.e("FirestoreError", "Error fetching grocery list ID", e)
+                }
         }
     }
 

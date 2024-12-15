@@ -180,4 +180,11 @@ class GroceryListViewModel(
         }
     }
 
+    fun checkItem(item: DatabaseRepository.GroceryItem) {
+        val price = item.price.toFloatOrNull() ?: 0f
+        val formattedPrice = String.format("%.2f", price)
+        databaseRepository.addToExpenses(formattedPrice.toFloat())
+        deleteItem(item)
+    }
+
 }
