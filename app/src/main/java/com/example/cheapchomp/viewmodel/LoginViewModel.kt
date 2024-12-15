@@ -77,9 +77,10 @@ class LoginViewModel(
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
                     _uiState.value = LoginUiState.Success("Login successful :)")
-                    _isLoggedIn.value = true
+                    setLoggedIn(true)
                 } else {
                     _uiState.value = LoginUiState.Error("Firebase sign-in failed")
+                    setLoggedIn(false)
                 }
             }
     }
