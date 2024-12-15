@@ -1,5 +1,6 @@
 package com.example.cheapchomp
 
+import android.app.Application
 import android.content.Context
 import android.content.IntentSender
 import android.os.Build
@@ -99,10 +100,7 @@ class MainActivity : ComponentActivity() {
 fun mainScreen(applicationContext: Context, onGoogleSignInLauncher: (IntentSender) -> Unit, signInRequest: BeginSignInRequest, oneTapClient: SignInClient) {
     val navController = rememberNavController()
     val auth = FirebaseAuth.getInstance()
-    val roomDB = Room.databaseBuilder(
-        applicationContext,
-        OfflineDatabase::class.java, "items_database"
-    ).allowMainThreadQueries().fallbackToDestructiveMigration().build()
+    val roomDB: OfflineDatabase = (applicationContext as MyApp).roomDB
 
 
     NavHost(navController = navController, startDestination = "LoginScreen") {
@@ -139,6 +137,18 @@ fun mainScreen(applicationContext: Context, onGoogleSignInLauncher: (IntentSende
         }
     }
 }
+
+class MyApp : Application() {
+    val roomDB: OfflineDatabase by lazy {
+        Room.databaseBuilder(
+            this,
+            OfflineDatabase::class.java,
+            "items_database"
+        ).allowMainThreadQueries().fallbackToDestructiveMigration()
+            .build()
+    }
+}
+
 
 
 @Preview(showBackground = true)

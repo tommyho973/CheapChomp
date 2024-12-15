@@ -15,6 +15,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.example.cheapchomp.MyApp
 import com.example.cheapchomp.network.models.ProductPrice
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
@@ -81,13 +82,11 @@ abstract class OfflineDatabase : RoomDatabase() {
 
 class SyncWorker(
     context: Context,
-    workerParams: WorkerParameters,
-    room_db: OfflineDatabase
+    workerParams: WorkerParameters
 ) : CoroutineWorker(context, workerParams) {
-
     val databaseRepository = DatabaseRepository()
+    private val room_db: OfflineDatabase = (context.applicationContext as MyApp).roomDB
     val itemsDao = room_db.itemsDao()
-    val room_db = room_db
 
     @RequiresApi(Build.VERSION_CODES.O)
     override suspend fun doWork(): Result {
@@ -98,13 +97,21 @@ class SyncWorker(
             for (item in unsyncedItems) {
                 if (item.inGroceryList) {
                     // add to Firestore grocery list
-                    val product = ProductPrice(
-                        name = item.name,
-                        price = item.price,
-                        imageUrl = ""
-                    )
-                    databaseRepository.addToDatabase(product, item.storeId, 1, room_db = room_db)
+                    databaseRepository.getGroceryList { listRef ->
+                        databaseRepository.getAllItems(listRef) { items ->
+                            if (items.any { it.name == item.name }) {
+                                // do nothing
+                            } else {
+                                val product = ProductPrice(
+                                    name = item.name,
+                                    price = item.price,
+                                    imageUrl = ""
+                                )
+                                databaseRepository.addToDatabase(product, item.storeId, 1, room_db = room_db)
 
+                            }
+                        }
+                    }
                 } else {
                     // Remove from Firestore grocery list
                     val product = ProductPrice(
@@ -128,7 +135,7 @@ class SyncWorker(
 }
 
 
-class DatabaseRepository {
+class DatabaseRepository() {
     private val db = Firebase.firestore
 
 
