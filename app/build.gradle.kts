@@ -112,8 +112,10 @@ dependencies {
     implementation (libs.retrofit)
     implementation (libs.converter.moshi)
     implementation (libs.logging.interceptor)
+    implementation("com.google.android.gms:play-services-auth:20.6.0")
     val room_version = "2.6.1"
     implementation("androidx.room:room-runtime:$room_version")
+    implementation("androidx.room:room-ktx:$room_version")
     ksp("androidx.room:room-compiler:$room_version")
     implementation ("androidx.work:work-runtime-ktx:2.8.1")
     implementation ("com.google.firebase:firebase-auth")

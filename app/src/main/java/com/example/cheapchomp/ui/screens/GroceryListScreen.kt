@@ -1,6 +1,5 @@
 package com.example.cheapchomp.ui.screens
 
-import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -26,7 +25,6 @@ import androidx.compose.material.IconButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingCart
@@ -43,7 +41,6 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -53,7 +50,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
@@ -61,13 +57,18 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import androidx.work.Constraints
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import com.example.cheapchomp.network.LocationService
 import com.example.cheapchomp.repository.DatabaseRepository
+import com.example.cheapchomp.repository.OfflineDatabase
+import com.example.cheapchomp.repository.SyncWorker
 import com.example.cheapchomp.ui.state.GroceryListUiState
 import com.example.cheapchomp.viewmodel.GroceryListViewModel
 import com.example.cheapchomp.viewmodel.GroceryListViewModelFactory
@@ -81,10 +82,11 @@ import kotlin.math.roundToInt
 fun GroceryListScreen(
     modifier: Modifier = Modifier,
     navController: NavController,
-    auth: FirebaseAuth
+    auth: FirebaseAuth,
+    room_db: OfflineDatabase
 ) {
     val viewModel: GroceryListViewModel = viewModel(
-        factory = GroceryListViewModelFactory(auth)
+        factory = GroceryListViewModelFactory(auth, room_db = room_db)
     )
     val uiState by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
@@ -109,6 +111,23 @@ fun GroceryListScreen(
                     style = MaterialTheme.typography.headlineMedium,
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
+                Button(
+                    onClick = { viewModel.displayCachedProducts() },
+                ) { Text("Offline Grocery List") }
+                Button(
+                    onClick = {
+                        val syncWorkRequest = OneTimeWorkRequestBuilder<SyncWorker>()
+                            .setConstraints(
+                                Constraints.Builder()
+                                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                                    .build()
+                            )
+                            .build()
+
+                        WorkManager.getInstance(context).enqueue(syncWorkRequest)
+
+                    },
+                ) { Text("Sync Online List to Offline") }
 
                 when (uiState) {
                     is GroceryListUiState.Success -> {

@@ -113,7 +113,7 @@ fun mainScreen(applicationContext: Context, onGoogleSignInLauncher: (IntentSende
             RegistrationScreen(navController = navController, auth = auth)
         }
         composable("GroceryListScreen") {
-            GroceryListScreen(navController = navController, auth = auth)
+            GroceryListScreen(navController = navController, auth = auth, room_db = roomDB)
         }
         composable("GoogleMapScreen") { backStackEntry ->
             val latitude = backStackEntry.arguments?.getString("latitude")?.toDoubleOrNull() ?: 0.0

@@ -3,7 +3,9 @@ package com.example.cheapchomp.viewmodel
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+
 import com.example.cheapchomp.repository.DatabaseRepository
+import com.example.cheapchomp.repository.OfflineDatabase
 import com.example.cheapchomp.ui.state.GroceryListUiState
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
@@ -15,7 +17,8 @@ import kotlinx.coroutines.launch
 
 class GroceryListViewModel(
     private val databaseRepository: DatabaseRepository = DatabaseRepository(),
-    private val auth: FirebaseAuth
+    private val auth: FirebaseAuth,
+    private val room_db: OfflineDatabase
 ) : ViewModel() {
     private val _uiState = MutableStateFlow<GroceryListUiState>(GroceryListUiState.Empty)
     val uiState: StateFlow<GroceryListUiState> = _uiState.asStateFlow()
@@ -59,6 +62,7 @@ class GroceryListViewModel(
                     .addOnFailureListener { e ->
                         _uiState.value = GroceryListUiState.Error(e.message ?: "Failed to delete item")
                     }
+                databaseRepository.removeFromOfflineGroceryList(item.name, room_db)
             } catch (e: Exception) {
                 _uiState.value = GroceryListUiState.Error(e.message ?: "Unknown error")
             }
@@ -154,6 +158,25 @@ class GroceryListViewModel(
             } catch (e: Exception) {
                 _uiState.value = GroceryListUiState.Error(e.message ?: "Unknown error")
             }
+        }
+    }
+
+    // room database method
+    fun displayCachedProducts() {
+        viewModelScope.launch {
+            databaseRepository.displayOfflineGroceryList(room_db)
+                .onSuccess { products ->
+                    if (products.isEmpty()) {
+                        _uiState.value = GroceryListUiState.Error("Your grocery list is empty")
+                    } else {
+                        _uiState.value = GroceryListUiState.Success(products)
+                    }
+                }
+                .onFailure { exception ->
+                    // Handle the exception, e.g., log it or update the UI state with an error
+                    Log.e("displayOfflineGroceryList", "Error fetching grocery list", exception)
+                    _uiState.value = GroceryListUiState.Error("Error fetching grocery list")
+                }
         }
     }
 

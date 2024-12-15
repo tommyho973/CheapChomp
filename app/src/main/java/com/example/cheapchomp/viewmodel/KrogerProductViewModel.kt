@@ -12,7 +12,6 @@ import kotlinx.coroutines.launch
 import com.example.cheapchomp.repository.KrogerRepository
 import com.example.cheapchomp.repository.DatabaseRepository
 import com.example.cheapchomp.network.models.ProductPrice
-import com.example.cheapchomp.repository.CachedGroceryItem
 import com.example.cheapchomp.repository.OfflineDatabase
 import com.example.cheapchomp.ui.state.KrogerProductUiState
 
@@ -117,7 +116,7 @@ class KrogerProductViewModel(
     // room database methods
     fun displayCachedProducts() {
         viewModelScope.launch {
-            databaseRepository.displayCachedProducts(room_db)
+            databaseRepository.displayCachedProducts(room_db, "all")
                 .onSuccess { products ->
                     if (products.isEmpty()) {
                         _uiState.value = KrogerProductUiState.Error("No cached products found")
@@ -140,7 +139,7 @@ class KrogerProductViewModel(
 
     fun displayFavoriteProducts() {
         viewModelScope.launch {
-            databaseRepository.displayFavoriteProducts(room_db)
+            databaseRepository.displayCachedProducts(room_db, "favorites")
                 .onSuccess { products ->
                     if (products.isEmpty()) {
                         _uiState.value = KrogerProductUiState.Error("No favorited products found")
@@ -157,7 +156,7 @@ class KrogerProductViewModel(
     }
 
     suspend fun isFavoriteProduct(productName: String): Boolean {
-        val favoriteProducts = databaseRepository.displayFavoriteProducts(room_db).getOrDefault(emptyList())
+        val favoriteProducts = databaseRepository.displayCachedProducts(room_db, "favorites").getOrDefault(emptyList())
         return favoriteProducts.any { it.name == productName }
     }
 

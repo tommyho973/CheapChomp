@@ -1,5 +1,6 @@
 package com.example.cheapchomp.repository
 
+import android.content.Context
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
@@ -12,14 +13,13 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.work.CoroutineWorker
+import androidx.work.WorkerParameters
 import com.example.cheapchomp.network.models.ProductPrice
-import com.example.cheapchomp.ui.state.KrogerProductUiState
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.firestore
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import java.time.Instant
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
@@ -28,18 +28,23 @@ import kotlin.coroutines.suspendCoroutine
 @Entity(tableName = "item")
 data class CachedGroceryItem(
     @PrimaryKey val id: Int,
-    val item_id: String,
     val user_id: String,
     val name: String,
     val price: String,
     var favorited: Boolean,
-    val storeId: String
+    var inGroceryList: Boolean,
+    val storeId: String,
+    val lastModified: Long = System.currentTimeMillis(),
+    var pendingSync: Boolean = true
 )
 
 @Dao
 interface ItemsDao {
     @Insert
     fun insertItems(vararg items: CachedGroceryItem)
+
+    @Query("SELECT * FROM item")
+    fun getAll(): List<CachedGroceryItem>
 
     @Query("SELECT * FROM item WHERE user_id = :userId")
     fun getAll(userId: String): List<CachedGroceryItem>
@@ -50,8 +55,17 @@ interface ItemsDao {
     @Query("SELECT * FROM item WHERE user_id = :userId AND favorited = 1")
     fun getFavoriteItems(userId: String): List<CachedGroceryItem>
 
-    @Query("SELECT * FROM item WHERE user_id = :userId AND favorited = 0")
-    fun getNonFavoriteItems(userId: String): List<CachedGroceryItem>
+    @Query("SELECT * FROM item WHERE user_id = :userId AND inGroceryList = 1")
+    fun getGroceryList(userId: String): List<CachedGroceryItem>
+
+    @Query("SELECT * FROM item WHERE user_id = :userId AND favorited = 0 AND inGroceryList = 0")
+    fun getNonFavoriteItems(userId: String): List<CachedGroceryItem> // also leaves out items in grocery list
+
+    @Query("SELECT * FROM Item WHERE pendingSync = 1")
+    fun getUnsyncedItems(): List<CachedGroceryItem>
+
+    @Query("UPDATE Item SET pendingSync = :syncStatus WHERE id = :itemId")
+    suspend fun updateSyncStatus(itemId: Int, syncStatus: Boolean)
 
     @Delete
     fun delete(item: CachedGroceryItem)
@@ -60,10 +74,59 @@ interface ItemsDao {
     fun deleteAll(items: List<CachedGroceryItem>)
 }
 
-@Database(entities = [CachedGroceryItem::class], version = 3)
+@Database(entities = [CachedGroceryItem::class], version = 4)
 abstract class OfflineDatabase : RoomDatabase() {
     abstract fun itemsDao(): ItemsDao
 }
+
+class SyncWorker(
+    context: Context,
+    workerParams: WorkerParameters,
+    room_db: OfflineDatabase
+) : CoroutineWorker(context, workerParams) {
+
+    val databaseRepository = DatabaseRepository()
+    val itemsDao = room_db.itemsDao()
+    val room_db = room_db
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    override suspend fun doWork(): Result {
+        val unsyncedItems = itemsDao.getUnsyncedItems()
+        if (unsyncedItems.isEmpty()) return Result.success()
+
+        try {
+            for (item in unsyncedItems) {
+                if (item.inGroceryList) {
+                    // add to Firestore grocery list
+                    val product = ProductPrice(
+                        name = item.name,
+                        price = item.price,
+                        imageUrl = ""
+                    )
+                    databaseRepository.addToDatabase(product, item.storeId, 1, room_db = room_db)
+
+                } else {
+                    // Remove from Firestore grocery list
+                    val product = ProductPrice(
+                        name = item.name,
+                        price = item.price,
+                        imageUrl = ""
+                    )
+                    databaseRepository.deleteFromDatabase(product, item.storeId)
+                }
+
+                // Mark as synced
+                itemsDao.updateSyncStatus(item.id, false)
+            }
+
+            return Result.success()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return Result.retry() // Retry syncing in case of failure
+        }
+    }
+}
+
 
 class DatabaseRepository {
     private val db = Firebase.firestore
@@ -78,8 +141,6 @@ class DatabaseRepository {
         onError: (Exception) -> Unit = {},
         room_db: OfflineDatabase
     ) {
-        // initialize dao for offline database
-        val itemsDao = room_db.itemsDao()
 
         getGroceryList { listRef ->
             Log.d("DATABASE", "Adding quantity: $quantity")
@@ -105,6 +166,7 @@ class DatabaseRepository {
                                 onError(e)
                             }
                         addToOfflineDatabase(product, room_db, storeId)
+                        addToOfflineGroceryList(product, storeId, room_db)
                     } else {
                         val item = hashMapOf(
                             "store_id" to storeId,
@@ -128,6 +190,7 @@ class DatabaseRepository {
                                 onError(e)
                             }
                         addToOfflineDatabase(product, room_db, storeId)
+                        addToOfflineGroceryList(product, storeId, room_db)
                     }
                 }
                 .addOnFailureListener { e ->
@@ -257,13 +320,17 @@ class DatabaseRepository {
     )
 
     // room database methods
-    suspend fun displayCachedProducts(room_db: OfflineDatabase): Result<List<ProductPrice>> {
+    suspend fun displayCachedProducts(room_db: OfflineDatabase, display: String): Result<List<ProductPrice>> {
         return suspendCoroutine { continuation ->
             val emptyProductList: List<ProductPrice> = emptyList()
             var toReturn = Result.success(emptyProductList)
             getUserRef { userRef ->
                 val itemsDao = room_db.itemsDao()
-                val roomItems = itemsDao.getAll(userRef.id)
+                val roomItems = if (display == "favorites") {
+                    itemsDao.getFavoriteItems(userRef.id)
+                } else {
+                    itemsDao.getAll(userRef.id)
+                }
                 if (roomItems.isNotEmpty()) {
                     val products = roomItems.map { item ->
                         ProductPrice(
@@ -287,22 +354,25 @@ class DatabaseRepository {
         }
     }
 
-    suspend fun displayFavoriteProducts(room_db: OfflineDatabase): Result<List<ProductPrice>> {
+
+    suspend fun displayOfflineGroceryList(room_db: OfflineDatabase): Result<List<GroceryItem>> {
         return suspendCoroutine { continuation ->
-            val emptyProductList: List<ProductPrice> = emptyList()
+            val emptyProductList: List<GroceryItem> = emptyList()
             var toReturn = Result.success(emptyProductList)
             getUserRef { userRef ->
                 val itemsDao = room_db.itemsDao()
-                val roomItems = itemsDao.getFavoriteItems(userRef.id)
+                val roomItems = itemsDao.getGroceryList(userRef.id)
                 if (roomItems.isNotEmpty()) {
                     val products = roomItems.map { item ->
-                        ProductPrice(
+                        GroceryItem(
+                            id = item.id.toString(),
                             name = item.name,
                             price = item.price,
-                            imageUrl = ""
+                            quantity = 1,
+                            storeId = item.storeId
                         )
                     }
-                    Log.d("DATABASE", "Displaying favorited products: $products")
+                    Log.d("DATABASE", "Displaying cached products: $products")
                     toReturn = Result.success(products)
                 }
                 continuation.resume(toReturn)
@@ -319,18 +389,28 @@ class DatabaseRepository {
                 cachedItem.favorited = true
                 itemsDao.insertItems(cachedItem)
             } else {
-                val items = itemsDao.getAll(userRef.id)
-                cachedItem = CachedGroceryItem(
-                    id = items.size,
-                    item_id = "0",
-                    user_id = userRef.id,
-                    name = product.name,
-                    price = product.price,
-                    favorited = true,
-                    storeId = storeId
-                )
-                itemsDao.insertItems(cachedItem)
-                Log.d("DATABASE", "Inserted item into room database: $cachedItem")
+                var inGroceryList = false
+                getGroceryList { listRef ->
+                    getAllItems(listRef) { allItems ->
+                        for (item in allItems) {
+                            if (item.name == product.name) {
+                                inGroceryList = true
+                            }
+
+                        }
+                        cachedItem = CachedGroceryItem(
+                            id = itemsDao.getAll().size,
+                            user_id = userRef.id,
+                            name = product.name,
+                            price = product.price,
+                            favorited = true,
+                            inGroceryList = inGroceryList,
+                            storeId = storeId
+                        )
+                        itemsDao.insertItems(cachedItem!!)
+                        Log.d("DATABASE", "Inserted item into room database: $cachedItem")
+                    }
+                }
             }
         }
     }
@@ -361,19 +441,77 @@ class DatabaseRepository {
 
             if (!cached) {
                 val cachedItem = CachedGroceryItem(
-                    id = items.size,
-                    item_id = "0",
+                    id = itemsDao.getAll().size,
                     user_id = userRef.id,
                     name = product.name,
                     price = product.price,
                     favorited = false,
+                    inGroceryList = false,
                     storeId = storeId
                 )
                 itemsDao.insertItems(cachedItem)
                 Log.d("DATABASE", "Inserted item into room database: $cachedItem")
 
+
             }
 
+        }
+    }
+
+    fun deleteFromOfflineDatabase(product: ProductPrice, room_db: OfflineDatabase) {
+        getUserRef { userRef ->
+            val itemsDao = room_db.itemsDao()
+            val cachedItem = itemsDao.getItem(userRef.id, product.name)
+            if (cachedItem != null) {
+                itemsDao.delete(cachedItem)
+            }
+        }
+    }
+
+    fun addToOfflineGroceryList(product: ProductPrice, storeId: String, room_db: OfflineDatabase) {
+        getUserRef { userRef ->
+            val itemsDao = room_db.itemsDao()
+
+            var cachedItem = itemsDao.getItem(userRef.id, product.name)
+            if (cachedItem != null) {
+                Log.d("DATABASE", "Adding item to offline grocery list, NOT null: $product")
+                itemsDao.delete(cachedItem)
+                cachedItem.inGroceryList = true
+                cachedItem.pendingSync = true
+                itemsDao.insertItems(cachedItem)
+            } else {
+                Log.d("DATABASE", "Adding item to offline grocery list, null: $product")
+                itemsDao.getAll().size
+                cachedItem = CachedGroceryItem(
+                    id = itemsDao.getAll().size,
+                    user_id = userRef.id,
+                    name = product.name,
+                    price = product.price,
+                    favorited = false,
+                    inGroceryList = true,
+                    storeId = storeId,
+                    pendingSync = true
+                )
+                itemsDao.insertItems(cachedItem)
+                Log.d("DATABASE", "Inserted item into room database: $cachedItem")
+
+
+            }
+        }
+
+
+    }
+
+    fun removeFromOfflineGroceryList(name: String, room_db: OfflineDatabase) {
+        getUserRef { userRef ->
+            val itemsDao = room_db.itemsDao()
+            val cachedItem = itemsDao.getItem(userRef.id, name)
+            if (cachedItem != null) {
+                itemsDao.delete(cachedItem)
+                cachedItem.inGroceryList = false
+                cachedItem.pendingSync = true
+                itemsDao.insertItems(cachedItem)
+            }
         }
     }
 
