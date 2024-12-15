@@ -12,7 +12,36 @@
           "package_name": "com.example.cheapchomp"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "114464307344-4qnsbser4c71ok2fkvluhb6duq43s6rf.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.cheapchomp",
+            "certificate_hash": "8379ac8a258c552b79af0fe8e4445a10ec65740b"
+          }
+        },
+        {
+          "client_id": "114464307344-q4vquhojajkjodunc1odjm7g7p8v4e0v.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.cheapchomp",
+            "certificate_hash": "4e6780d5c6cbf257bd474fd714e535c268df36c6"
+          }
+        },
+        {
+          "client_id": "114464307344-rnha51aktqcd740l76r74ehsmu08vnun.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.cheapchomp",
+            "certificate_hash": "e8de954326163f714511914ab256294c8073db34"
+          }
+        },
+        {
+          "client_id": "114464307344-44vq0cmhh0cb85e1hmci1qtkilfbv70c.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyCv2VsbCUbibz74ratSWZNs1aJ36Nj92wg"
@@ -20,7 +49,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "114464307344-44vq0cmhh0cb85e1hmci1qtkilfbv70c.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
