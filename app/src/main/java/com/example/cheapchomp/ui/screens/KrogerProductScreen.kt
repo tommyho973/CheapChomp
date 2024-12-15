@@ -85,6 +85,7 @@ import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 import android.content.res.Configuration
 import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.NavigationRail
@@ -356,17 +357,25 @@ fun KrogerProductScreen(
                         onClick = { navController.navigateUp() }
                     )
                     BottomNavigationItem(
+                        icon = { Icon(Icons.Filled.AccountCircle, contentDescription = "Statistics") },
+                        label = { Text("Statistics") },
+                        selected = false,
+                        onClick = { navController.navigate("StatisticsScreen") }
+                    )
+                    BottomNavigationItem(
                         icon = { Icon(Icons.Filled.Search, contentDescription = "Product Search") },
                         label = { Text("Search") },
                         selected = true,
                         onClick = { /* current screen */ }
                     )
+
                     BottomNavigationItem(
                         icon = { Icon(Icons.Filled.ShoppingCart, contentDescription = "Grocery List") },
                         label = { Text("Grocery List") },
                         selected = false,
                         onClick = { navController.navigate("GroceryListScreen") }
                     )
+
                 }
             }
         }

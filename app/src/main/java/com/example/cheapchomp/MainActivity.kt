@@ -29,6 +29,7 @@ import com.example.cheapchomp.ui.screens.GroceryListScreen
 import com.example.cheapchomp.ui.screens.KrogerProductScreen
 import com.example.cheapchomp.ui.screens.LoginScreen
 import com.example.cheapchomp.ui.screens.RegistrationScreen
+import com.example.cheapchomp.ui.screens.StatisticsScreen
 import com.example.cheapchomp.ui.theme.CheapChompTheme
 import com.example.cheapchomp.viewmodel.LoginViewModel
 import com.example.cheapchomp.viewmodel.LoginViewModelFactory
@@ -118,6 +119,9 @@ fun mainScreen(applicationContext: Context, onGoogleSignInLauncher: (IntentSende
             val longitude = backStackEntry.arguments?.getString("longitude")?.toDoubleOrNull() ?: 0.0
             GoogleMapScreen(navController = navController, latitude = latitude, longitude = longitude)
         }
+        composable("StatisticsScreen") {
+            StatisticsScreen(navController = navController)
+        }
         composable(
             route = "KrogerProductScreen/{latitude}/{longitude}",
             arguments = listOf(
@@ -130,6 +134,7 @@ fun mainScreen(applicationContext: Context, onGoogleSignInLauncher: (IntentSende
                     defaultValue = "-122.4194"  // San Francisco default
                 }
             )
+
         ) { backStackEntry ->
             val latitude = backStackEntry.arguments?.getString("latitude")?.toDoubleOrNull() ?: 37.7749
             val longitude = backStackEntry.arguments?.getString("longitude")?.toDoubleOrNull() ?: -122.4194

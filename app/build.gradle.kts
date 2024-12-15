@@ -120,6 +120,7 @@ dependencies {
     implementation ("androidx.work:work-runtime-ktx:2.8.1")
     implementation ("com.google.firebase:firebase-auth")
     implementation ("com.google.android.gms:play-services-auth")
+    implementation ("com.github.tehras:charts:0.2.4-alpha")
 
 
 }

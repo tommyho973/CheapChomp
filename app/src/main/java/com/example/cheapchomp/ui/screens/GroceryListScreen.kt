@@ -24,6 +24,7 @@ import androidx.compose.material.DropdownMenuItem
 import androidx.compose.material.IconButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
@@ -201,6 +202,12 @@ fun GroceryListScreen(
                     onClick = { navController.navigateUp() }
                 )
                 BottomNavigationItem(
+                    icon = { Icon(Icons.Filled.AccountCircle, contentDescription = "Statistics") },
+                    label = { Text("Statistics") },
+                    selected = false,
+                    onClick = { navController.navigate("StatisticsScreen") }
+                )
+                BottomNavigationItem(
                     icon = { Icon(Icons.Filled.Search, contentDescription = "Product Search") },
                     label = { Text("Search") },
                     selected = false,
@@ -219,12 +226,14 @@ fun GroceryListScreen(
                         }
                     }
                 )
+
                 BottomNavigationItem(
                     icon = { Icon(Icons.Filled.ShoppingCart, contentDescription = "Grocery List") },
                     label = { Text("Grocery List") },
                     selected = true,
                     onClick = { /* Current screen */ }
                 )
+
             }
         }
     }
